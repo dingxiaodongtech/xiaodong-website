@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>认知学与SOLO算力理论 — 对话可视化</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d2e;
+    --border: #2a2d3e;
+    --accent: #6c5ce7;
+    --accent2: #00cec9;
+    --user: #fdcb6e;
+    --ai: #74b9ff;
+    --text: #dfe6e9;
+    --text2: #b2bec3;
+    --green: #00b894;
+    --orange: #e17055;
+    --red: #d63031;
+    --purple: #a29bfe;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Noto Sans SC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+  }
+
+  /* Hero */
+  .hero {
+    position: relative;
+    padding: 80px 40px 60px;
+    text-align: center;
+    background: linear-gradient(135deg, #0f1117 0%, #1a1d2e 40%, #2d1b69 100%);
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle at 30% 50%, rgba(108,92,231,0.08) 0%, transparent 50%),
+                radial-gradient(circle at 70% 80%, rgba(0,206,201,0.06) 0%, transparent 50%);
+    animation: drift 20s ease-in-out infinite;
+  }
+  @keyframes drift { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-30px,20px)} }
+  .hero h1 { position:relative; font-size:2.4em; font-weight:800; background:linear-gradient(135deg,#a29bfe,#6c5ce7,#00cec9); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:12px; }
+  .hero p { position:relative; color:var(--text2); font-size:1.1em; max-width:700px; margin:0 auto; }
+  .hero .tag-row { position:relative; display:flex; gap:10px; justify-content:center; margin-top:20px; flex-wrap:wrap; }
+  .hero .tag { padding:4px 14px; border-radius:20px; font-size:0.82em; border:1px solid var(--border); background:rgba(255,255,255,0.04); }
+
+  /* Nav */
+  .nav-bar {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(15,17,23,0.92); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; gap: 0; overflow-x: auto;
+    padding: 0 20px;
+  }
+  .nav-bar button {
+    flex-shrink: 0;
+    padding: 14px 20px;
+    color: var(--text2);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.88em;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .nav-bar button:hover, .nav-bar button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* Container */
+  .container { max-width: 960px; margin: 0 auto; padding: 40px 24px; }
+
+  /* Turn */
+  .turn { margin-bottom: 48px; }
+  .turn-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+  }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.9em; flex-shrink: 0;
+  }
+  .avatar.user { background: linear-gradient(135deg, #fdcb6e, #e17055); color: #2d3436; }
+  .avatar.ai { background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: #fff; }
+  .turn-meta { display:flex; flex-direction:column; }
+  .turn-meta .name { font-weight:700; font-size:0.95em; }
+  .turn-meta .name.user-name { color: var(--user); }
+  .turn-meta .name.ai-name { color: var(--ai); }
+  .turn-meta .role { font-size:0.78em; color:var(--text2); }
+
+  .bubble {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-left: 52px;
+  }
+  .bubble.user-bubble {
+    background: linear-gradient(135deg, rgba(253,203,110,0.08), rgba(225,112,85,0.06));
+    border-color: rgba(253,203,110,0.2);
+  }
+  .bubble h2 { font-size:1.25em; margin:24px 0 12px; color:#fff; }
+  .bubble h2:first-child { margin-top:0; }
+  .bubble h3 { font-size:1.08em; margin:20px 0 10px; color:var(--purple); }
+  .bubble h4 { font-size:0.98em; margin:16px 0 8px; color:var(--accent2); }
+  .bubble p { margin:8px 0; color:var(--text); }
+  .bubble strong { color:#fff; }
+  .bubble em { color:var(--text2); font-style:italic; }
+  .bubble ul, .bubble ol { margin:8px 0 8px 20px; }
+  .bubble li { margin:4px 0; }
+  .bubble blockquote {
+    border-left:3px solid var(--accent);
+    padding:10px 16px;
+    margin:12px 0;
+    background:rgba(108,92,231,0.06);
+    border-radius:0 8px 8px 0;
+    color:var(--text2);
+  }
+  .bubble code {
+    background:rgba(108,92,231,0.15);
+    padding:2px 6px;
+    border-radius:4px;
+    font-size:0.88em;
+    color:var(--purple);
+  }
+  .bubble pre {
+    background:#12141f;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:16px;
+    overflow-x:auto;
+    margin:12px 0;
+    font-size:0.85em;
+    line-height:1.5;
+  }
+  .bubble pre code { background:none; padding:0; color:var(--text); }
+
+  /* Comparison table */
+  .cmp-table {
+    width:100%;
+    border-collapse:collapse;
+    margin:16px 0;
+    font-size:0.9em;
+  }
+  .cmp-table th {
+    background:rgba(108,92,231,0.15);
+    padding:10px 14px;
+    text-align:left;
+    font-weight:600;
+    color:var(--purple);
+    border-bottom:2px solid var(--accent);
+  }
+  .cmp-table td {
+    padding:10px 14px;
+    border-bottom:1px solid var(--border);
+    vertical-align:top;
+  }
+  .cmp-table tr:hover td { background:rgba(255,255,255,0.02); }
+
+  /* Colored level cards */
+  .level-card {
+    border-radius:12px;
+    padding:16px 20px;
+    margin:10px 0;
+    border-left:4px solid;
+  }
+  .level-card.l1 { border-color:#00b894; background:rgba(0,184,148,0.06); }
+  .level-card.l2 { border-color:#74b9ff; background:rgba(116,185,255,0.06); }
+  .level-card.l3 { border-color:#e17055; background:rgba(225,112,85,0.06); }
+  .level-card.l4 { border-color:#d63031; background:rgba(214,48,49,0.06); }
+  .level-card.l5 { border-color:#a29bfe; background:rgba(162,155,254,0.06); }
+  .level-card .level-tag {
+    display:inline-block;
+    padding:2px 10px;
+    border-radius:10px;
+    font-size:0.78em;
+    font-weight:700;
+    margin-bottom:8px;
+    color:#fff;
+  }
+  .level-card.l1 .level-tag { background:#00b894; }
+  .level-card.l2 .level-tag { background:#0984e3; }
+  .level-card.l3 .level-tag { background:#e17055; }
+  .level-card.l4 .level-tag { background:#d63031; }
+  .level-card.l5 .level-tag { background:#6c5ce7; }
+  .level-card h4 { margin:0 0 6px; color:#fff; font-size:0.95em; }
+  .level-card p { font-size:0.9em; margin:4px 0; }
+
+  /* Dimension cards */
+  .dim-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:16px 0; }
+  @media(max-width:640px) { .dim-grid { grid-template-columns:1fr; } }
+  .dim-card {
+    background:rgba(255,255,255,0.02);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:18px;
+  }
+  .dim-card .dim-icon { font-size:1.6em; margin-bottom:6px; }
+  .dim-card h4 { margin:0 0 6px; font-size:0.95em; }
+  .dim-card p { font-size:0.85em; color:var(--text2); margin:3px 0; }
+
+  /* Flow chart */
+  .flow {
+    display:flex; flex-direction:column; align-items:center; gap:0; margin:16px 0;
+  }
+  .flow-step {
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:12px 20px;
+    text-align:center;
+    width:80%;
+    max-width:500px;
+    font-size:0.9em;
+  }
+  .flow-arrow {
+    color:var(--accent);
+    font-size:1.4em;
+    line-height:1;
+    padding:4px 0;
+  }
+
+  /* Section divider */
+  .section-divider {
+    text-align:center;
+    padding:40px 0 20px;
+  }
+  .section-divider .num {
+    display:inline-flex;
+    width:48px; height:48px;
+    align-items:center; justify-content:center;
+    border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:#fff;
+    font-weight:800;
+    font-size:1.1em;
+    margin-bottom:8px;
+  }
+  .section-divider h2 {
+    font-size:1.3em; color:#fff;
+  }
+  .section-divider p { font-size:0.9em; color:var(--text2); }
+
+  /* Highlight box */
+  .highlight-box {
+    background:linear-gradient(135deg,rgba(108,92,231,0.1),rgba(0,206,201,0.08));
+    border:1px solid rgba(108,92,231,0.25);
+    border-radius:14px;
+    padding:20px 24px;
+    margin:16px 0;
+  }
+  .highlight-box p { margin:4px 0; }
+
+  /* V2 upgrade cards */
+  .upgrade-card {
+    border-radius:14px;
+    padding:20px 24px;
+    margin:14px 0;
+    border:1px solid var(--border);
+    background:linear-gradient(135deg, rgba(108,92,231,0.06), rgba(0,206,201,0.04));
+  }
+  .upgrade-card h4 { color:var(--accent2); margin:0 0 8px; }
+
+  /* Footer */
+  .footer {
+    text-align:center;
+    padding:40px 20px;
+    color:var(--text2);
+    font-size:0.82em;
+    border-top:1px solid var(--border);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  /* All content visible immediately */
+  .fade-in { }
+</style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+  <h1>认知学与 SOLO 算力理论</h1>
+  <p>一场关于「如何用认知神经科学重构数学教育 AI 系统」的深度对话</p>
+  <div class="tag-row">
+    <span class="tag">SOLO 分类理论</span>
+    <span class="tag">认知负荷理论</span>
+    <span class="tag">三重表征模型</span>
+    <span class="tag">预测编码</span>
+    <span class="tag">LLM 原生分类</span>
+  </div>
+</div>
+
+<!-- Nav -->
+<nav class="nav-bar">
+  <button data-target="turn1">Q1 SOLO vs 布鲁姆</button>
+  <button data-target="turn2">Q2 新分类方式</button>
+  <button data-target="turn3">Q3 前沿理论优化</button>
+  <button data-target="turn4">Q4 大模型分类</button>
+  <button data-target="turn5">Q5 双轨制体系</button>
+  <button data-target="turn6">Q6 落地实施方案</button>
+</nav>
+
+<div class="container">
+
+<!-- ============ Turn 1 ============ -->
+<div class="section-divider" id="turn1">
+  <div class="num">1</div>
+  <h2>SOLO 理论 vs 布鲁姆分类</h2>
+  <p>哪个更适合小学数学知识图谱？</p>
+</div>
+
+<div class="turn fade-in">
+  <div class="turn-header">
+    <div class="avatar user">晓冬</div>
+    <div class="turn-meta">
+      <span class="name user-name">晓冬</span>
+      <span class="role">提问</span>
+    </div>
+  </div>
+  <div class="bubble user-bubble">
+    <p>我现在发现 SOLO 理论很适合我当前的 <strong>知识点 → 特征 → 考法 → 思想</strong> 的分层模式，请比较它与布鲁姆分类哪个更适合小学数学知识。</p>
+  </div>
+</div>
+
+<div class="turn fade-in">
+  <div class="turn-header">
+    <div class="avatar ai">AI</div>
+    <div class="turn-meta">
+      <span class="name ai-name">AI 助手</span>
+      <span class="role">深度对比分析</span>
+    </div>
+  </div>
+  <div class="bubble">
+    <h2>核心分歧：为什么 SOLO 完胜布鲁姆？</h2>
+    <table class="cmp-table">
+      <tr><th>维度</th><th>布鲁姆分类</th><th>SOLO 理论</th></tr>
+      <tr><td><strong>评估对象</strong></td><td>学生的「内部认知心理动作」</td><td>知识本身的「外部结构复杂度」</td></tr>
+      <tr><td><strong>关键词</strong></td><td>识记、理解、应用、分析、综合</td><td>单点、多点、关联、抽象扩展</td></tr>
+      <tr><td><strong>AI 判断难度</strong></td><td>🔴 极难 — AI 很难判断学生在"应用"还是"分析"</td><td>🟢 极易 — 只要看图谱里的节点和连线数量</td></tr>
+      <tr><td><strong>图谱契合度</strong></td><td>一般，心理动作难用网格表达</td><td>✅ 完美！SOLO 的本质就是点和线的增加</td></tr>
+    </table>
+
+    <div class="highlight-box">
+      <p><strong>结论：</strong>布鲁姆强调"动词"（他怎么想的），而 SOLO 强调"结构"（他脑子里的网结成什么样了）。对于图谱技术来说，<strong>SOLO 理论就是图数据库在教育学上的天然倒影！</strong></p>
+    </div>
+
+    <h2>四层模型 与 SOLO 层级的完美映射</h2>
+
+    <div class="level-card l1">
+      <span class="level-tag">前结构 Pre-structural</span>
+      <h4>错题/未掌握状态</h4>
+      <p><strong>学生表现：</strong>乱猜，或用无关信息解题</p>
+      <p><strong>AI 诊断：</strong>完全没有触及 L4 知识点，基础空白</p>
+    </div>
+
+    <div class="level-card l1">
+      <span class="level-tag">L1 单点结构 Uni-structural</span>
+      <h4>对应【L4 原子知识点】</h4>
+      <p><strong>定义：</strong>只能提取单个线索，只会单一算法</p>
+      <p><strong>举例：</strong>知道"怎么加"，能算对 <code>25 + 13 = 38</code></p>
+    </div>
+
+    <div class="level-card l2">
+      <span class="level-tag">L2 多点结构 Multi-structural</span>
+      <h4>对应【特征层 Feature】</h4>
+      <p><strong>定义：</strong>掌握多个孤立线索，但还没联系起来</p>
+      <p><strong>举例：</strong>知道"进位"（特征A）、"含0"（特征B），但处理不了"又进位又有0"</p>
+    </div>
+
+    <div class="level-card l3">
+      <span class="level-tag">L3 关联结构 Relational</span>
+      <h4>对应【考法层 Test Method】</h4>
+      <p><strong>定义：</strong>能把多个分散的点整合为一个有机整体，解决具体场景问题</p>
+      <p><strong>举例：</strong>把"进位加法"和"比多比少"关联，成功解决排队应用题</p>
+    </div>
+
+    <div class="level-card l5">
+      <span class="level-tag">L4 抽象扩展 Extended Abstract</span>
+      <h4>对应【思想层 Thinking】</h4>
+      <p><strong>定义：</strong>跳出当前问题框架，将原理升华、泛化到未知新领域</p>
+      <p><strong>举例：</strong>做完整数"平移法求周长"，能自己悟出小数中也存在"转化思想"</p>
+    </div>
+
+    <h2>采用 SOLO 理论的三大巨大增益</h2>
+    <div class="highlight-box">
+      <p><strong>1. 错因极度精确化</strong><br>
+        传统（布鲁姆）：<em>"该生在应用题的综合能力上有欠缺"</em> — 正确的废话<br>
+        SOLO 系统：<em>"该生处于多点结构，掌握了小数乘法(L4)和末尾去0(特征)，但缺乏关联能力"</em></p>
+      <p><strong>2. 可视化的绝佳理由</strong><br>星图就是在物理意义上重现了孩子大脑神经元生长的过程</p>
+      <p><strong>3. 推题算法极其自然</strong><br>考法节点出错 → 向下回退推多点特征题 → 再错 → 推单点 L4 纯算式题</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Turn 2 ============ -->
+<div class="section-divider" id="turn2">
+  <div class="num">2</div>
+  <h2>基于 SOLO 的全新分类方式</h2>
+  <p>CPU-UI-Data 认知算力标签体系</p>
+</div>
+
+<div class="turn fade-in">
+  <div class="turn-header">
+    <div class="avatar user">晓冬</div>
+    <div class="turn-meta">
+      <span class="name user-name">晓冬</span>
+      <span class="role">提问</span>
+    </div>
+  </div>
+  <div class="bubble user-bubble">
+    <p>基于这个对比，请你以高级教研和产品经理的角度给出 <strong>新的分类方式</strong>，标明参考依据。</p>
+  </div>
+</div>
+
+<div class="turn fade-in">
+  <div class="turn-header">
+    <div class="avatar ai">AI</div>
+    <div class="turn-meta">
+      <span class="name ai-name">AI 助手</span>
+      <span class="role">认知大一统理论</span>
+    </div>
+  </div>
+  <div class="bubble">
+    <h2>核心哲学：从"测知识"到"测算力"</h2>
+    <div class="highlight-box">
+      <p>知识是<strong>数据 (Data)</strong>，思想是<strong>算法 (Algorithm)</strong>，考法是<strong>交互界面 (UI)</strong>，SOLO 层级就是大脑的<strong>算力 (CPU)</strong>。</p>
+    </div>
+
+    <h2>四维要素解构</h2>
+    <div class="dim-grid">
+      <div class="dim-card">
+        <div class="dim-icon">🧱</div>
+        <h4>知识本体 (Data)</h4>
+        <p>静态的、原子的、绝对客观的</p>
+        <p>提供解题所需的"原材料"</p>
+      </div>
+      <div class="dim-card">
+        <div class="dim-icon">⚔️</div>
+        <h4>考法实战 (UI)</h4>
+        <p>动态的、场景化的、带有迷惑性的</p>
+        <p>触发大脑启动的"外部刺激"</p>
+      </div>
+      <div class="dim-card">
+        <div class="dim-icon">💡</div>
+        <h4>数学思想 (Algorithm)</h4>
+        <p>抽象的、策略性的、可迁移的</p>
+        <p>指导大脑如何调用知识去应对考法</p>
+      </div>
+      <div class="dim-card">
+        <div class="dim-icon">🧠</div>
+        <h4>认知算力 (CPU)</h4>
+        <p>结构化的、阶梯式的、决定难度的核心</p>
+        <p>衡量大脑能将多少个条件连接起来</p>
+      </div>
+    </div>
+
+    <h2>五阶认知进化论</h2>
+
+    <div class="level-card l1">
+      <span class="level-tag">🟢 L1 孤立点映射 (SOLO-U)</span>
+      <h4>刺激-反应 | 单通道</h4>
+      <p>看到数字就读，看到算式就死算。无法将两个不同概念结合。</p>
+      <p><strong>测评：</strong>底层知识的提取速度和准确率（百题计算）</p>
+    </div>
+
+    <div class="level-card l2">
+      <span class="level-tag">🔵 L2 线性堆叠 (SOLO-M)</span>
+      <h4>并行处理，互不相交 | 双通道并发</h4>
+      <p>能同时提取多个条件，但条件之间是"A和B"而非"A导致B"</p>
+      <p><strong>测评：</strong>跨媒介表征能力（把图形翻译成数字）</p>
+    </div>
+
+    <div class="level-card l3">
+      <span class="level-tag">🟠 L3 结构化建模 (SOLO-R) — 🌟 核心分水岭</span>
+      <h4>格式塔与闭环 | 闭环回溯</h4>
+      <p>质变！建立 <code>部分 + 部分 = 整体</code> 的数学模型，具备可逆性思维。</p>
+      <p><strong>测评：</strong>区分"机械刷题"和"真懂算理"的试金石</p>
+    </div>
+
+    <div class="level-card l4">
+      <span class="level-tag">🔴 L4 复杂网络 (SOLO-R+)</span>
+      <h4>抗干扰与多步路由 | 复杂网络</h4>
+      <p>在信息过载中精准剔除"冗余条件"，能把第一步的输出作为第二步的输入。</p>
+      <p><strong>测评：</strong>思维的严密性和深度</p>
+    </div>
+
+    <div class="level-card l5">
+      <span class="level-tag">🟣 L5 降维与抽象 (SOLO-E)</span>
+      <h4>元认知与代数思维 | 抽象降维</h4>
+      <p>不对"数字"运算，而是对"运算本身的规律"进行运算。</p>
+      <p><strong>测评：</strong>创新意识和高阶逻辑，中小学思维天花板</p>
+    </div>
+
+    <h2>AI 辅导的动态运行机制</h2>
+
+    <div class="flow">
+      <div class="flow-step" style="border-color:var(--red); border-width:2px;">🚨 学生在 L4 做错</div>
+      <div class="flow-arrow">↓ 剥离复杂度</div>
+      <div class="flow-step">测 L3（无干扰的逆向题）</div>
+      <div class="flow-arrow">↓ 若还错</div>
+      <div class="flow-step">测 L2（顺向看图题）</div>
+      <div class="flow-arrow">↓ 若还错</div>
+      <div class="flow-step">测 L1（纯计算）</div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step" style="border-color:var(--green); border-width:2px;">🎯 定位到"断掉的齿轮"，精准修复</div>
+    </div>
+
+    <h3>理论依据</h3>
+    <table class="cmp-table">
+      <tr><th>对应维度</th><th>理论</th><th>支撑内容</th></tr>
+      <tr><td>算力定级</td><td>SOLO 分类评价理论 (Biggs & Collis, 1982)</td><td>学习结果复杂性由线索数量及结构化程度决定</td></tr>
+      <tr><td>UI 与 CPU 分离</td><td>认知负荷理论 (Sweller, 1988)</td><td>外在负荷（UI）挤占用于计算的 CPU 算力</td></tr>
+      <tr><td>AI 升降级逻辑</td><td>最近发展区理论 (Vygotsky, 1930s)</td><td>只推"当前稳定层级 + 1"的题目</td></tr>
+      <tr><td>L3/L5 里程碑</td><td>皮亚杰认知发展阶段论</td><td>L3 = 可逆性（具体运算），L5 = 假设-演绎推理（形式运算）</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============ Turn 3 ============ -->
+<div class="section-divider" id="turn3">
+  <div class="num">3</div>
+  <h2>前沿理论优化 → V2.0</h2>
+  <p>从古典心理学到认知神经科学</p>
+</div>
+
+<div class="turn fade-in">
+  <div class="turn-header">
+    <div class="avatar user">晓冬</div>
+    <div class="turn-meta">
+      <span class="name user-name">晓冬</span>
+      <span class="role">提问</span>
+    </div>
+  </div>
+  <div class="bubble user-bubble">
+    <p>请你搜索更加前沿的理论，看看这个是否可以优化。</p>
+  </div>
+</div>
+
+<div class="turn fade-in">
+  <div class="turn-header">
+    <div class="avatar ai">AI</div>
+    <div class="turn-meta">
+      <span class="name ai-name">AI 助手</span>
+      <span class="role">三大前沿理论升维</span>
+    </div>
+  </div>
+  <div class="bubble">
+    <h2>升维一：从"认知负荷"到"神经表征"</h2>
+    <div class="upgrade-card">
+      <h4>迪昂的三重表征模型 (Triple Code Model, Dehaene, 1992)</h4>
+      <p><strong>原框架盲区：</strong>把图/文/算式统称 UI，太粗糙了。</p>
+      <p><strong>前沿发现：</strong>大脑用<strong>三个独立脑区硬件</strong>处理数学：</p>
+      <ul>
+        <li><strong>视觉阿拉伯表征（符号）</strong> — 枕颞区，处理 <code>3</code>, <code>+</code>, <code>=</code></li>
+        <li><strong>听觉言语表征（文字）</strong> — 左半球语言区，处理"三个""增加"</li>
+        <li><strong>模拟数量表征（数感）</strong> — 顶内沟(IPS)，处理大小、距离、连续量</li>
+      </ul>
+      <p><strong>🎯 优化：</strong>当孩子做错应用题时，精准诊断为"语词表征与数量表征的跨脑区数据传输失败"。</p>
+    </div>
+
+    <h2>升维二：从"算力层级"到"算力占用率"</h2>
+    <div class="upgrade-card">
+      <h4>卡尼曼的双系统理论 (Dual Process Theory, 2011 诺奖)</h4>
+      <p><strong>原框架盲区：</strong>只看"对错"，忽略了反应时。</p>
+      <p><strong>前沿发现：</strong>大脑有两个 CPU：<strong>系统1</strong>（自动驾驶，极速，0内存）和 <strong>系统2</strong>（逻辑分析，高耗能）。高手的本质是把 L1/L2 知识编译成系统1的下意识反应。</p>
+      <p><strong>🎯 优化：</strong>增加<strong>耗时/流利度</strong>维度。即使答对了 L2 题但花了 30 秒 → 判定知识仍在系统2 → 推送流利度训练。</p>
+    </div>
+
+    <h2>升维三：从"错因回退"到"生成式误差更新"</h2>
+    <div class="upgrade-card">
+      <h4>弗里斯顿的自由能原理与预测编码 (Free Energy Principle, 2010s)</h4>
+      <p><strong>原框架盲区：</strong>做错=算力不够或不会，于是降维。</p>
+      <p><strong>前沿发现：</strong>学生的错误不是无能，而是<strong>"预测误差"</strong>。学习的本质是更新大脑的生成模型以最小化惊奇感。</p>
+      <p><strong>🎯 优化：</strong>例如 0.5×0.8=0.4 学生却认为变大了 — 错误先验是"乘法总是使数字变大"。AI 不该退回简单乘法，而是推送<strong>打破其先验的最小特例</strong>。</p>
+    </div>
+
+    <h2>V2.0 大一统架构对比</h2>
+    <table class="cmp-table">
+      <tr><th>维度</th><th>V1.0 古典心理学</th><th>V2.0 认知神经科学</th><th>升级效果</th></tr>
+      <tr><td><strong>Data</strong></td><td>静态数学概念</td><td>生成模型 (Generative Models)</td><td>诊断"错误先验规律"并打破</td></tr>
+      <tr><td><strong>UI</strong></td><td>信息包装与外在认知负荷</td><td>三重神经表征 (Triple Code)</td><td>定位到具体脑区的数据转换失败</td></tr>
+      <tr><td><strong>CPU</strong></td><td>SOLO 最大并发处理层级</td><td>最大算力 + 自动化程度 (System 1 占比)</td><td>引入"作答时长/流畅度"</td></tr>
+      <tr><td><strong>Thinking</strong></td><td>总结出的数学策略</td><td>主动推断策略 (Active Inference)</td><td>考查面对干扰时能否主动缩小预测误差</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============ Turn 4 ============ -->
+<div class="section-divider" id="turn4">
+  <div class="num">4</div>
+  <h2>大模型 (LLM) 的分类体系</h2>
+  <p>碳基 vs 硅基，完全不同的底层逻辑</p>
+</div>
+
+<div class="turn fade-in">
+  <div class="turn-header">
+    <div class="avatar user">晓冬</div>
+    <div class="turn-meta">
+      <span class="name user-name">晓冬</span>
+      <span class="role">提问</span>
+    </div>
+  </div>
+  <div class="bubble user-bubble">
+    <p>对于语言大模型 AI 来说，怎样分类更合适呢？</p>
+  </div>
+</div>
+
+<div class="turn fade-in">
+  <div class="turn-header">
+    <div class="avatar ai">AI</div>
+    <div class="turn-meta">
+      <span class="name ai-name">AI 助手</span>
+      <span class="role">LLM 原生分类体系</span>
+    </div>
+  </div>
+  <div class="bubble">
+
+    <div class="highlight-box">
+      <p><strong>人类 vs 大模型的核心差异</strong></p>
+      <p>🧠 人类：工作记忆极小，但有极强物理直觉和跨感官常识</p>
+      <p>🤖 大模型：无记忆限制（百万级上下文），但缺乏物理世界锚点，本质是概率预测的高维向量引擎</p>
+    </div>
+
+    <h2>维度一：CoT 推理深度层</h2>
+    <p>取代 SOLO 理论，按"需要几步思维链"划分难度</p>
+
+    <div class="level-card l1">
+      <span class="level-tag">Hop-0 显式检索</span>
+      <p>事实类知识，一次前向传播直接输出。如："加法交换律是什么？"</p>
+    </div>
+    <div class="level-card l2">
+      <span class="level-tag">Hop-1 单步映射</span>
+      <p>给定公式代入变量。如：S=ab，代入 3 和 4 算出 12</p>
+    </div>
+    <div class="level-card l3">
+      <span class="level-tag">Hop-2 显式多步推理</span>
+      <p>条件都给出但需按序执行两步以上，必须生成中间步骤</p>
+    </div>
+    <div class="level-card l4">
+      <span class="level-tag">Hop-3 隐式条件推断</span>
+      <p>题干信息不全，需先从隐空间提取隐式常识再推理。如：闰年2月全勤</p>
+    </div>
+
+    <h2>维度二：Attention 注意力锚点层</h2>
+    <p>取代 UI 呈现形式，大模型怕的是注意力稀释</p>
+
+    <div class="dim-grid">
+      <div class="dim-card">
+        <div class="dim-icon">🔢</div>
+        <h4>[A1] 强逻辑锚点</h4>
+        <p>纯算式/方程，注意力 100% 集中在符号和运算顺序</p>
+      </div>
+      <div class="dim-card">
+        <div class="dim-icon">📝</div>
+        <h4>[A2] 语义对齐锚点</h4>
+        <p>文字应用题，将自然语言精确对齐到数学算子</p>
+      </div>
+      <div class="dim-card">
+        <div class="dim-icon">🎭</div>
+        <h4>[A3] 冗余降噪锚点</h4>
+        <p>含多余条件，需特殊提示模型先剔除干扰</p>
+      </div>
+    </div>
+
+    <h2>维度三：语义向量空间层</h2>
+    <p>取代树状目录，用扁平标签构建高维网</p>
+    <div class="highlight-box">
+      <p><strong>实体标签：</strong><code>#两位数</code> <code>#退位</code> <code>#单位1</code> <code>#周长</code></p>
+      <p><strong>关系标签：</strong><code>#部分求整体</code> <code>#逆运算</code> <code>#等量代换</code></p>
+      <p><strong>特征标签：</strong><code>#含零</code> <code>#进率不同</code> <code>#图形重叠</code></p>
+    </div>
+
+    <h2>维度四：RLHF 错误范式层</h2>
+    <p>把学生常犯的错误分类直接写进图谱</p>
+
+    <div class="dim-grid">
+      <div class="dim-card">
+        <div class="dim-icon">⚡</div>
+        <h4>[Err-E] 执行类错误</h4>
+        <p>算理懂，但 6×8 算成了 42</p>
+      </div>
+      <div class="dim-card">
+        <div class="dim-icon">🔄</div>
+        <h4>[Err-S] 句法转换错误</h4>
+        <p>"比A多3的数是B" → 列成 A-3=B</p>
+      </div>
+      <div class="dim-card">
+        <div class="dim-icon">🚫</div>
+        <h4>[Err-B] 边界/常识崩溃</h4>
+        <p>算出"半个人""余数比除数大"</p>
+      </div>
+    </div>
+
+    <h3>给 LLM 的 JSON 结构示例</h3>
+    <pre><code>{
+  "Question_ID": "Math_G3_001",
+  "LLM_Taxonomy": {
+    "Vector_Embeddings": ["#两位数乘法", "#进位", "#末尾有0"],
+    "CoT_Depth": "Hop-2",
+    "Attention_Anchor": "A3_冗余降噪",
+    "Error_Typology": [
+      {"error_code": "Err-B1", "desc": "未处理末尾的0"},
+      {"error_code": "Err-E2", "desc": "进位加法执行遗忘"}
+    ]
+  }
+}</code></pre>
+  </div>
+</div>
+
+<!-- ============ Turn 5 ============ -->
+<div class="section-divider" id="turn5">
+  <div class="num">5</div>
+  <h2>双轨制：教研体系 vs AI 体系</h2>
+  <p>如何区分、如何桥接</p>
+</div>
+
+<div class="turn fade-in">
+  <div class="turn-header">
+    <div class="avatar user">晓冬</div>
+    <div class="turn-meta">
+      <span class="name user-name">晓冬</span>
+      <span class="role">提问</span>
+    </div>
+  </div>
+  <div class="bubble user-bubble">
+    <p>我需要教研用的一套体系和 AI 用的体系，应该如何区分，且分别要用哪个底层理论比较好？</p>
+  </div>
+</div>
+
+<div class="turn fade-in">
+  <div class="turn-header">
+    <div class="avatar ai">AI</div>
+    <div class="turn-meta">
+      <span class="name ai-name">AI 助手</span>
+      <span class="role">双轨制架构设计</span>
+    </div>
+  </div>
+  <div class="bubble">
+
+    <h2>第一套：教研（Human）体系</h2>
+    <div class="upgrade-card" style="border-left:4px solid var(--user);">
+      <h4 style="color:var(--user);">聚焦"人脑的生长规律" — 可解释性优先</h4>
+      <p><strong>核心目标：</strong>规划学习路径、解释错因、安抚家长焦虑</p>
+      <p><strong>底层理论：</strong></p>
+      <ul>
+        <li><strong>SOLO 分类理论</strong> — 衡量结构复杂度</li>
+        <li><strong>三重表征模型</strong> — 解释"看得懂算式却读不懂应用题"</li>
+        <li><strong>最近发展区 ZPD</strong> — 解释"为什么推这道题"</li>
+      </ul>
+      <p><strong>教研工作台标签：</strong></p>
+      <ul>
+        <li>【知识坐标】两位数进位加法</li>
+        <li>【题型外衣】文字应用题 / 实物图示题</li>
+        <li>【SOLO难度】L3 关联结构</li>
+        <li>【错因描述】忘记进位 / 单位"1"找错</li>
+      </ul>
+    </div>
+
+    <h2>第二套：AI（Machine）体系</h2>
+    <div class="upgrade-card" style="border-left:4px solid var(--ai);">
+      <h4 style="color:var(--ai);">聚焦"大模型的运算逻辑" — 可计算性优先</h4>
+      <p><strong>核心目标：</strong>相似题精准召回、引导 Step-by-Step 推理、动态纠偏</p>
+      <p><strong>底层理论：</strong></p>
+      <ul>
+        <li><strong>LLM 原生分类</strong> — CoT 步数 + Attention 锚点</li>
+        <li><strong>预测编码理论</strong> — 分析"预测误差"，打破错误先验</li>
+        <li><strong>贝叶斯/深度知识追踪 (BKT/DKT)</strong> — 计算掌握概率 0%~100%</li>
+      </ul>
+      <p><strong>传给 AI 的 JSON 结构：</strong></p>
+      <ul>
+        <li>【Semantic Embeddings】高维浮点向量</li>
+        <li>【CoT Depth】Hop-3</li>
+        <li>【Attention Anchor】A2_Noise_Reduction</li>
+        <li>【RLHF Error Code】Err-Syntax-04</li>
+      </ul>
+    </div>
+
+    <h2>🌉 映射引擎：教研与 AI 如何对话</h2>
+    <p>教研员不需要懂 CoT，AI 也不需要懂"三年级下册大纲"。中间用<strong>映射引擎</strong>翻译。</p>
+
+    <h3>实战案例：排队应用题</h3>
+    <div class="highlight-box">
+      <p><em>"操场上排队，小明前面有5人，后面有4人，这一排一共多少人？"</em></p>
+    </div>
+
+    <div class="flow">
+      <div class="flow-step" style="border-color:var(--user);">
+        <strong>Step 1：教研员录入（教研体系）</strong><br>
+        知识点：基数与序数 | SOLO：L3 | 经典错因：漏算自己(5+4=9) | UI：自然语言
+      </div>
+      <div class="flow-arrow">⬇️ 映射引擎自动转译</div>
+      <div class="flow-step" style="border-color:var(--ai);">
+        <strong>Step 2：生成 AI 体系 JSON</strong><br>
+        <code>CoT: Hop-2</code> | <code>Attention: Implicit_Entity_Missing</code><br>
+        <code>Prior_Bias_Break: 5+4=9 → 引导画线段图</code>
+      </div>
+      <div class="flow-arrow">⬇️ 学生答错时</div>
+      <div class="flow-step" style="border-color:var(--green);">
+        <strong>Step 3：AI 执行引导</strong><br>
+        "你算得很快！但是前面的同学和后面的同学都数了，<strong>有没有忘记数某个人呢？</strong>"
+      </div>
+    </div>
+
+    <h2>终极形态总结</h2>
+    <table class="cmp-table">
+      <tr><th></th><th style="color:var(--user)">教研体系（对内）</th><th style="color:var(--ai)">AI 体系（底层）</th></tr>
+      <tr><td><strong>面向</strong></td><td>教研员、家长、前端星图</td><td>大模型 API、推荐算法</td></tr>
+      <tr><td><strong>核心理论</strong></td><td>SOLO + 三重表征</td><td>CoT 深度 + 向量化 + 注意力锚点</td></tr>
+      <tr><td><strong>设计原则</strong></td><td>可解释性（Interpretability）</td><td>可计算性（Computability）</td></tr>
+      <tr><td><strong>标签风格</strong></td><td>人类直觉的中文标签</td><td>结构化 JSON + 向量嵌入</td></tr>
+      <tr><td><strong>桥梁</strong></td><td colspan="2" style="text-align:center">映射引擎（中间件）自动双向转译</td></tr>
+    </table>
+
+    <div class="highlight-box">
+      <p>上层符合<strong>教育心理学</strong>，底层符合<strong>深度学习计算架构</strong> — 既有"人类教师同理心"，又有"超级机器算力"。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Turn 6 ============ -->
+<div class="section-divider" id="turn6">
+  <div class="num">6</div>
+  <h2>理论如何落地：从认知科学到七大组件</h2>
+  <p>Q1-Q5 每个理论 → 具体落在哪个组件 → 改变了什么</p>
+</div>
+
+<div class="turn">
+  <div class="turn-header">
+    <div class="avatar user">晓冬</div>
+    <div class="turn-meta">
+      <span class="name user-name">晓冬</span>
+      <span class="role">提问</span>
+    </div>
+  </div>
+  <div class="bubble user-bubble">
+    <p>前面讨论了 SOLO、三重表征、双系统、预测编码、CoT、双轨制这么多理论。我们已经建了七大教研数据组件（知识图谱 537个L4、考法图谱 314个考法、思想字典 21个ID……），这些理论具体<strong>怎么指导落地</strong>？每个理论改变了什么决策？</p>
+  </div>
+</div>
+
+<div class="turn">
+  <div class="turn-header">
+    <div class="avatar ai">AI</div>
+    <div class="turn-meta">
+      <span class="name ai-name">AI 助手</span>
+      <span class="role">理论→落地深度融合</span>
+    </div>
+  </div>
+  <div class="bubble">
+
+    <h2>核心思路：每个理论都改变了一个关键决策</h2>
+    <div class="highlight-box">
+      <p>不是"先学理论再做产品"，而是<strong>每个理论直接回答了一个落地困境</strong>。下面逐一拆解：理论解决了什么问题 → 落在哪个组件 → 如果没有这个理论我们会怎样做错。</p>
+    </div>
+
+    <!-- ===== 理论1: SOLO ===== -->
+    <h2>一、SOLO 理论 → 知识图谱的四级架构 + 降维诊断逻辑</h2>
+    <div class="upgrade-card" style="border-left:4px solid var(--green);">
+      <h4 style="color:var(--green);">Q1 的理论：SOLO 分类（Biggs & Collis, 1982）</h4>
+      <p><strong>落地困境：</strong>知识图谱该怎么分层？传统做法按教材章节分，但这只是目录结构，不反映认知复杂度。</p>
+      <p><strong>SOLO 如何改变决策：</strong></p>
+      <ul>
+        <li>SOLO 的"单点→多点→关联→抽象扩展"直接指导了 <strong>❸ 知识图谱的 L1→L4 四级 DAG 架构</strong></li>
+        <li>537个 L4 原子知识点的切分标准——按"进位/不进位""连续进位/一次进位"等<strong>结构复杂度边界</strong>切分，而不是按题型切分</li>
+        <li>降维诊断的核心逻辑——学生做错高层级(关联)题时，<strong>向下回退到低层级(单点)题</strong>定位断点</li>
+      </ul>
+    </div>
+
+    <h3>SOLO 层级 → 落地组件的精确映射</h3>
+    <table class="cmp-table">
+      <tr><th>SOLO 层级</th><th>落地到哪</th><th>具体做了什么</th></tr>
+      <tr><td><strong>单点结构</strong></td><td>❸ 知识图谱 L4 原子节点</td><td>537个最小粒度知识点，每个只含一个认知要素</td></tr>
+      <tr><td><strong>多点结构</strong></td><td>❸ 知识图谱特征列</td><td>进位/退位/含0 等特征组合——学生能处理多个孤立条件但不能关联</td></tr>
+      <tr><td><strong>关联结构</strong></td><td>❹ 考法图谱 314个考法</td><td>考法 = 多个 L4 + 特征的有机组合，需要建立模型才能解</td></tr>
+      <tr><td><strong>抽象扩展</strong></td><td>❷ 思想字典 21个思想ID</td><td>跨年级/跨模块的底层逻辑，ID-102[点段对应]可从爬楼梯迁移到植树问题</td></tr>
+    </table>
+
+    <div class="highlight-box">
+      <p><strong>如果没有 SOLO：</strong>我们会按教材"第三章第二节"分层，知识图谱变成目录翻版，AI 降维时只能"降难度系数"，无法精准定位到底是哪个认知层级断裂。</p>
+    </div>
+
+    <!-- ===== 理论2: 认知负荷 ===== -->
+    <h2>二、认知负荷理论 → 三维正交剥离 + 考法字典的 I 维度</h2>
+    <div class="upgrade-card" style="border-left:4px solid var(--ai);">
+      <h4 style="color:var(--ai);">Q2 的理论：认知负荷理论（Sweller, 1988）</h4>
+      <p><strong>落地困境：</strong>学生做错一道应用题，是"加法不会"还是"读不懂题"？传统标签"两位数加法应用题"混为一谈。</p>
+      <p><strong>认知负荷如何改变决策：</strong></p>
+      <ul>
+        <li>Sweller 区分了内在负荷(知识本身)和外在负荷(呈现形式)，这直接催生了 <strong>三维正交剥离原则</strong>——知识点、考法、能力三个维度完全独立</li>
+        <li>落地到 <strong>❺ 考法字典的 I 维度（信息隐蔽度）</strong>：I0裸题→I1浅层情境→I2隐蔽条件→I3动态建模→I4冗余干扰</li>
+        <li>I 维度本质就是在量化<strong>外在认知负荷的梯度</strong>——同一个知识点，穿上不同的"情境外衣"，负荷完全不同</li>
+      </ul>
+    </div>
+
+    <h3>I 维度降维诊断的实战威力</h3>
+    <div class="flow">
+      <div class="flow-step" style="border-color:var(--red);">学生做错 I2 题（隐蔽条件：无盖鱼缸求表面积）</div>
+      <div class="flow-arrow">↓ 剥离外在负荷：I2 → I0</div>
+      <div class="flow-step">推送 I0 裸题：<code>长5宽3高2的长方体，求表面积</code></div>
+      <div class="flow-arrow">做对 → 错因锁定：外在认知负荷过载，不是知识点问题<br/>做错 → 继续降维到知识点层</div>
+    </div>
+
+    <div class="highlight-box">
+      <p><strong>如果没有认知负荷理论：</strong>我们会把"表面积裸题"和"无盖鱼缸"打成两个不同知识点（加上竖式/应用题更多），标签爆炸且逻辑混乱。有了 I 维度，同一个 L4 知识点只需通过调节 I 值就能覆盖所有难度变体。</p>
+    </div>
+
+    <!-- ===== 理论3: 三重表征 ===== -->
+    <h2>三、三重表征模型 → 情境库的三引擎 + UI 维度精细化</h2>
+    <div class="upgrade-card" style="border-left:4px solid var(--purple);">
+      <h4 style="color:var(--purple);">Q3 升维一：迪昂的三重表征模型（Dehaene, 1992）</h4>
+      <p><strong>落地困境：</strong>❼ 情境库有 80+ 情境ID，但如何判断给学生换哪种情境？"看图题"和"文字题"对大脑的负荷是同一种吗？</p>
+      <p><strong>三重表征如何改变决策：</strong></p>
+      <ul>
+        <li>大脑用<strong>三套独立硬件</strong>处理数学：视觉符号(枕颞区) / 听觉语词(语言区) / 模拟数量(顶内沟)</li>
+        <li>直接指导了 <strong>考法字典 I 维度内部的细分</strong>：I1 不再笼统叫"浅层情境"，而是区分为 <strong>纯符号UI / 具象视觉UI / 自然语言UI</strong></li>
+        <li>落地到 <strong>❼ 情境库的三引擎</strong>本质上就是三种表征的系统性覆盖：引擎一(标准文字) / 引擎二(真实情境) / 引擎三(跨学科创新)</li>
+      </ul>
+    </div>
+
+    <div class="dim-grid">
+      <div class="dim-card">
+        <h4>传统做法</h4>
+        <p>学生做错"应用题" → 诊断为"阅读理解差"</p>
+        <p style="color:var(--red);">这是一句正确的废话</p>
+      </div>
+      <div class="dim-card">
+        <h4>三重表征指导后</h4>
+        <p>同一个 L4，分别推 I0(符号) / I1(图示) / I1(文字)</p>
+        <p style="color:var(--green);">精准定位：符号→数量通道OK，语词→数量通道断裂</p>
+      </div>
+    </div>
+
+    <!-- ===== 理论4: 双系统 ===== -->
+    <h2>四、双系统理论 → 学生状态表新增"流利度"维度</h2>
+    <div class="upgrade-card" style="border-left:4px solid var(--orange);">
+      <h4 style="color:var(--orange);">Q3 升维二：卡尼曼的双系统理论（Dual Process, 2011诺奖）</h4>
+      <p><strong>落地困境：</strong>学生状态表用 mastery(0~1) 追踪掌握概率。但有一类"隐性未掌握"传统方式抓不到——答对了，但磨蹭了 30 秒。</p>
+      <p><strong>双系统如何改变决策：</strong></p>
+      <ul>
+        <li>系统1(自动化,极速) vs 系统2(逻辑分析,慢)。真正掌握 = 知识从系统2迁移到系统1</li>
+        <li>直接改变了 <strong>学生状态表的 Schema</strong>：在 mastery 之外新增 <code>fluency_ms</code>（平均作答时长）和 <code>system1_ratio</code>（自动化程度）</li>
+        <li>AI 推题策略升级：即使 mastery=0.95 但 fluency>15s → 不跳过，推送<strong>抗遗忘流利度训练</strong>直到 3 秒内答出</li>
+      </ul>
+    </div>
+
+    <h3>落地影响：学生状态表 V2.0</h3>
+    <pre><code>{
+  "student_id": "S_001",
+  "node_states": {
+    "两位数加两位数(进位)": {
+      "mastery": 0.95,        // BKT 掌握概率 ← SOLO 理论
+      "fluency_ms": 28000,    // 平均作答时长 ← 双系统理论(新增!)
+      "system1": false,       // 尚未自动化 → 仍需训练
+      "prior_bias": null      // 无错误先验 ← 预测编码理论(新增!)
+    }
+  }
+}</code></pre>
+
+    <!-- ===== 理论5: 预测编码 ===== -->
+    <h2>五、预测编码理论 → 考法图谱新增"先验偏差"列</h2>
+    <div class="upgrade-card" style="border-left:4px solid var(--red);">
+      <h4 style="color:var(--red);">Q3 升维三：弗里斯顿的预测编码（Free Energy Principle, 2010s）</h4>
+      <p><strong>落地困境：</strong>降维诊断的假设是"错=不会，降维找断点"。但有一类错误不是不会，是<strong>脑子里装了错误的规律</strong>。比如学生坚信"乘法让数字变大"→ 做 0.5×0.8 时判断结果变大。</p>
+      <p><strong>预测编码如何改变决策：</strong></p>
+      <ul>
+        <li>错误不是无能，是<strong>"预测误差"</strong>。学习=更新大脑的生成模型以最小化惊奇感</li>
+        <li>直接改变了 <strong>❹ 考法图谱</strong>：在"核心挖坑维度"之外，新增 <strong>"先验偏差(Prior Bias)"列</strong>——标注学生可能携带的错误先验模型</li>
+        <li>改变了 AI 的纠错策略：遇到先验偏差类错误，<strong>不降维</strong>（降维没用，低级题也会被同一个错误先验支配），而是推送<strong>"违背直觉的最小特例"</strong>来打破先验</li>
+      </ul>
+    </div>
+
+    <div class="flow">
+      <div class="flow-step" style="border-color:var(--red);">学生做 0.5×0.8=0.4 但判断"变大了"</div>
+      <div class="flow-arrow">↓ 传统降维：推送 5×8=40 → 做对 → 误判为"小数乘法不会"</div>
+      <div class="flow-step" style="border-color:var(--orange);">实际错因：先验偏差"乘法=变大"← 整数经验的错误泛化</div>
+      <div class="flow-arrow">↓ 预测编码指导的新策略</div>
+      <div class="flow-step" style="border-color:var(--green);">推送最小特例："0.8块蛋糕的一半，你变多了还是变少了？"<br/>→ 强烈预测误差 → 迫使大脑重写底层模型</div>
+    </div>
+
+    <!-- ===== 理论6: CoT + LLM ===== -->
+    <h2>六、LLM 原生分类 → 双轨制的"AI 体系"侧</h2>
+    <div class="upgrade-card" style="border-left:4px solid var(--accent2);">
+      <h4 style="color:var(--accent2);">Q4-Q5 的理论：CoT 推理深度 + Attention 锚点 + 双轨制</h4>
+      <p><strong>落地困境：</strong>教研员用 SOLO/三重表征打的标签，大模型看不懂。大模型不理解"L3 关联结构"，它只理解"需要几步推理链"。</p>
+      <p><strong>双轨制如何改变决策：</strong></p>
+      <ul>
+        <li>教研体系（人看）和 AI 体系（机器看）<strong>彻底解耦</strong>，中间用映射引擎自动转译</li>
+        <li>落地到 <strong>题目 Q-Matrix</strong>：每道题同时有两套标签——教研标签（SOLO层级/情境类型/错因描述）和 AI 标签（CoT_Depth/Attention_Anchor/Error_Code）</li>
+        <li>落地到 <strong>大模型的 System Prompt</strong>：当 CoT_Depth=Hop-3 时，强制要求模型输出至少3步 thinking → 幻觉率骤降</li>
+      </ul>
+    </div>
+
+    <h3>映射引擎：教研标签 → AI 标签的自动转译</h3>
+    <table class="cmp-table">
+      <tr><th>教研体系（人看）</th><th>映射规则</th><th>AI 体系（机器看）</th></tr>
+      <tr><td>SOLO L1 单点</td><td>→</td><td><code>CoT_Depth: Hop-0</code> 直接检索</td></tr>
+      <tr><td>SOLO L2 多点</td><td>→</td><td><code>CoT_Depth: Hop-1</code> 单步映射</td></tr>
+      <tr><td>SOLO L3 关联</td><td>→</td><td><code>CoT_Depth: Hop-2</code> 显式多步推理</td></tr>
+      <tr><td>SOLO L4 强关联</td><td>→</td><td><code>CoT_Depth: Hop-3</code> + <code>Attention: A3_降噪</code></td></tr>
+      <tr><td>I0 裸题</td><td>→</td><td><code>Attention: A1_强逻辑锚点</code></td></tr>
+      <tr><td>I1 浅层情境</td><td>→</td><td><code>Attention: A2_语义对齐</code></td></tr>
+      <tr><td>I2-I4 隐蔽/干扰</td><td>→</td><td><code>Attention: A3_冗余降噪</code> + System Prompt 注入</td></tr>
+      <tr><td>教研错因描述</td><td>→</td><td><code>RLHF Error Code</code>（Err-E/Err-S/Err-B）</td></tr>
+    </table>
+
+    <!-- ===== ZPD ===== -->
+    <h2>七、最近发展区 → 推题策略的"只推 L+1"铁律</h2>
+    <div class="upgrade-card" style="border-left:4px solid var(--user);">
+      <h4 style="color:var(--user);">Q2 的理论：维果茨基最近发展区（ZPD, 1930s）</h4>
+      <p><strong>落地困境：</strong>AI 该推什么难度的题？传统做法是"做对了就加难度"，线性且粗暴。</p>
+      <p><strong>ZPD 如何改变决策：</strong></p>
+      <ul>
+        <li>ZPD 定义了"舒适区-发展区-恐慌区"三层结构</li>
+        <li>直接催生了三大自适应场景的核心铁律：<strong>永远只推"当前稳定层级 + 1"</strong></li>
+        <li>落地到考法字典的四个维度——每次只升一个维度的一级：I0→I1（不跳I2），D1→D2（不跳D3）</li>
+      </ul>
+    </div>
+
+    <div class="dim-grid">
+      <div class="dim-card">
+        <h4>溯源降级 ← ZPD + SOLO</h4>
+        <p>做错 → SOLO 降维找断点 → 找到能做对的层级 → 从那里开始 ZPD L+1 重建</p>
+        <p>思想字典支持跨年级降维：六年级 ID-102 报错 → 直接推三年级同ID题</p>
+      </div>
+      <div class="dim-card">
+        <h4>进阶跃迁 ← ZPD + 认知负荷</h4>
+        <p>秒答全对 → 升一个I级(增加外在负荷) 或升一个D级(增加推理深度)</p>
+        <p>切换情境库引擎：标准→创新，保持知识不变但提升新鲜感</p>
+      </div>
+    </div>
+
+    <!-- ===== 全景总结 ===== -->
+    <h2>全景：六大理论 × 七大组件 落地矩阵</h2>
+
+    <table class="cmp-table">
+      <tr><th>理论（来自哪个Q）</th><th>落地到哪个组件</th><th>改变了什么决策</th></tr>
+      <tr><td><strong>SOLO</strong> (Q1)</td><td>❸ 知识图谱 L1-L4 架构<br/>降维诊断逻辑</td><td>知识点按<em>结构复杂度</em>分层，不按教材章节</td></tr>
+      <tr><td><strong>认知负荷</strong> (Q2)</td><td>❺ 考法字典 I 维度<br/>三维正交剥离</td><td>知识/考法/能力<em>完全独立</em>，I 维度量化外在负荷梯度</td></tr>
+      <tr><td><strong>三重表征</strong> (Q3)</td><td>❼ 情境库三引擎<br/>I 维度细分 UI 类型</td><td>区分符号/视觉/语词三种表征，精准定位<em>跨脑区转换失败</em></td></tr>
+      <tr><td><strong>双系统</strong> (Q3)</td><td>学生状态表新增<br/>fluency + system1</td><td>答对≠掌握，必须达到<em>自动化(系统1)</em>才释放算力</td></tr>
+      <tr><td><strong>预测编码</strong> (Q3)</td><td>❹ 考法图谱<br/>新增"先验偏差"列</td><td>先验偏差类错误<em>不降维</em>，推送最小特例打破错误模型</td></tr>
+      <tr><td><strong>CoT + 双轨制</strong> (Q4-5)</td><td>Q-Matrix 双套标签<br/>映射引擎</td><td>教研用人类语言打标，AI 用 Hop/Attention 运算，<em>自动转译</em></td></tr>
+      <tr><td><strong>ZPD</strong> (Q2)</td><td>三大自适应场景<br/>推题策略铁律</td><td>永远只推 L+1，每次只升<em>一个维度的一级</em></td></tr>
+    </table>
+
+    <div class="highlight-box">
+      <p><strong>每个理论都不是装饰品，而是一把钥匙。</strong></p>
+      <p>SOLO 决定了图谱怎么分层，认知负荷决定了标签怎么正交，三重表征决定了情境怎么分类，双系统决定了"答对"的标准是什么，预测编码决定了"做错"的应对不只是降维，CoT 决定了人和机器各看什么标签，ZPD 决定了下一题推什么。</p>
+      <p>七大组件是骨架，六大理论是灵魂。<strong>没有理论指导的组件是电子版教材目录，没有组件承载的理论是空中楼阁。</strong></p>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="footer">
+  <p>认知学与 SOLO 算力理论 · 对话可视化 · 海豚 AI 学教研团队</p>
+</div>
+
+<script>
+// Nav click → scroll to section
+const navBtns = document.querySelectorAll('.nav-bar button');
+navBtns.forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const target = document.getElementById(btn.dataset.target);
+    if (target) {
+      const y = target.getBoundingClientRect().top + window.pageYOffset - 60;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  });
+});
+
+// Active nav highlight (throttled)
+const sections = document.querySelectorAll('.section-divider[id]');
+let ticking = false;
+window.addEventListener('scroll', () => {
+  if (ticking) return;
+  ticking = true;
+  requestAnimationFrame(() => {
+    let current = '';
+    sections.forEach(s => { if (window.pageYOffset >= s.offsetTop - 120) current = s.id; });
+    navBtns.forEach(b => {
+      b.classList.toggle('active', b.dataset.target === current);
+    });
+    ticking = false;
+  });
+});
+</script>
+</body>
+</html>
