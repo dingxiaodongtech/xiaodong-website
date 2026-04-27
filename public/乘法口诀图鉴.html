@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>九九乘法了个羊 - 视觉资产全览 (青绿玉石版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0; 
+            padding: 40px 20px; 
+            background-color: #f0fdf4; /* 护眼薄荷绿底色 */
+            font-family: 'Nunito', ui-rounded, 'Hiragino Maru Gothic ProN', system-ui, sans-serif;
+            color: #1e293b;
+        }
+
+        /* =========================================
+           卡牌底板 (统一白瓷麻将质感)
+           为了画廊展示，稍微放大了固定尺寸
+           ========================================= */
+        .tile-base {
+            background-color: #ffffff; 
+            border-radius: 10px; /* 匹配放大后的比例 */
+            border: 1px solid #cbd5e1; 
+            border-bottom: 5px solid #94a3b8; 
+            width: 56px;
+            height: 76px;
+            display: flex;
+            align-items: center; 
+            justify-content: center;
+            position: relative; 
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); 
+            font-weight: 900;
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+
+        .tile-base:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.08); 
+        }
+
+        /* 呼吸感字号 */
+        .num-base { z-index: 10; position: relative; font-size: 28px; letter-spacing: 0px; }
+
+        /* =========================================
+           高级同色系调色板：冷暖与明暗的交响
+           ========================================= */
+        .tier-B .num-base { color: #526e65; } /* 灰苍绿 */
+        .tier-A .num-base { color: #059669; } /* 翡翠绿 */
+        .tier-S .num-base { color: #0d9488; } /* 湖水碧 */
+        .tier-SS .num-base { color: #4d7c0f; } /* 暖阳草绿 */
+        .tier-C .num-base { color: #022c22; } /* 幽林暗绿 */
+        
+        /* 道具卡特殊底板 */
+        .tier-SSS { 
+            background-color: #ecfdf5; 
+            border-color: #a7f3d0; 
+            border-bottom-color: #6ee7b7;
+        }
+        .tier-SSS .num-base { color: #059669; }
+
+    </style>
+</head>
+<body class="max-w-5xl mx-auto">
+
+    <div class="text-center mb-12">
+        <h1 class="text-3xl font-black text-emerald-800 mb-3 tracking-widest">卡牌视觉资产全览</h1>
+        <p class="text-emerald-600/70 font-bold">青绿玉石系列 · 极简麻将排版 · 呼吸留白设计</p>
+    </div>
+
+    <div id="gallery" class="space-y-12">
+        </div>
+
+    <script>
+        // 1. 获取九九乘法表内的所有唯一数字
+        const ALL_NUMBERS = new Set();
+        for (let i = 1; i <= 9; i++) {
+            for (let j = i; j <= 9; j++) {
+                ALL_NUMBERS.add(i); ALL_NUMBERS.add(j); ALL_NUMBERS.add(i * j);
+            }
+        }
+        const UNIQUE_NUMBERS = Array.from(ALL_NUMBERS).sort((a, b) => a - b);
+
+        // 2. 稀有度与色彩分类逻辑
+        const getTier = (val) => {
+            if (val === '万能' || val === '洗牌') return 'SSS';
+            if ([4, 6, 8, 9].includes(val)) return 'SS';
+            if ([1, 2, 3, 5, 7].includes(val)) return 'S';
+            if ([12, 16, 18, 24, 36].includes(val)) return 'A';
+            if ([25, 49, 64, 81].includes(val)) return 'C';
+            return 'B';
+        };
+
+        const tierInfo = [
+            { id: 'SSS', name: 'SSS级 道具', desc: '微绿底板搭配翡翠绿图标，独立于数字体系之外。', colorClass: 'text-[#059669]' },
+            { id: 'SS', name: 'SS级 枢纽合数', desc: '暖阳草绿 (#4d7c0f) - 极高明度，视觉最显眼，解局的关键枢纽。', colorClass: 'text-[#4d7c0f]' },
+            { id: 'S', name: 'S级 质数基底', desc: '湖水碧 (#0d9488) - 偏冷调蓝绿，清透锐利，代表不可分割的基础。', colorClass: 'text-[#0d9488]' },
+            { id: 'A', name: 'A级 高频乘积', desc: '翡翠绿 (#059669) - 标准正绿，视觉的基准锚点，高频出现。', colorClass: 'text-[#059669]' },
+            { id: 'B', name: 'B级 常规乘积', desc: '灰苍绿 (#526e65) - 低饱和灰调绿，安静地退居背景，不抢风头。', colorClass: 'text-[#526e65]' },
+            { id: 'C', name: 'C级 危险平方', desc: '幽林暗绿 (#022c22) - 极低明度，厚重且带有压迫感，警示极易卡手。', colorClass: 'text-[#022c22]' }
+        ];
+
+        const iconSparkles = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>`;
+        const iconShuffle = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>`;
+
+        // 3. 渲染画廊
+        const gallery = document.getElementById('gallery');
+
+        tierInfo.forEach(tier => {
+            // 获取该分类下的所有卡牌
+            let items = [];
+            if (tier.id === 'SSS') {
+                items = ['万能', '洗牌'];
+            } else {
+                items = UNIQUE_NUMBERS.filter(n => getTier(n) === tier.id);
+            }
+
+            if (items.length === 0) return;
+
+            // 构建 HTML
+            let sectionHTML = `
+                <div class="bg-white p-8 rounded-3xl shadow-sm border border-emerald-100/50">
+                    <div class="mb-6 border-l-4 border-emerald-500 pl-4">
+                        <h2 class="text-xl font-black ${tier.colorClass}">${tier.name}</h2>
+                        <p class="text-sm text-slate-500 font-bold mt-1">${tier.desc}</p>
+                    </div>
+                    <div class="flex flex-wrap gap-4">
+            `;
+
+            items.forEach(val => {
+                let innerContent = '';
+                if (val === '万能') innerContent = iconSparkles;
+                else if (val === '洗牌') innerContent = iconShuffle;
+                else innerContent = val;
+
+                sectionHTML += `
+                    <div class="tile-base tier-${tier.id}">
+                        <span class="num-base">${innerContent}</span>
+                    </div>
+                `;
+            });
+
+            sectionHTML += `</div></div>`;
+            gallery.innerHTML += sectionHTML;
+        });
+
+    </script>
+</body>
+</html>

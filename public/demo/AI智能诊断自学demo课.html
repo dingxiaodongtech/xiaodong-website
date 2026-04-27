@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 自适应诊断 · 五年级数学</title>
+    <style>
+        :root {
+            --bg-dark:#0d1117;--panel-dark:#161b22;--border-dark:#30363d;
+            --text-dark-main:#c9d1d9;--text-dark-sub:#8b949e;
+            --primary:#3b82f6;--primary-light:#eff6ff;--ai-color:#10b981;--ai-light:#ecfdf5;
+            --accent:#8b5cf6;--danger:#ef4444;--warning:#f59e0b;--success:#10b981;
+            --bg:#f8fafc;--card:#ffffff;--border:#e2e8f0;
+            --text:#1e293b;--text-sub:#64748b;--text-muted:#94a3b8;--radius:16px;
+        }
+        *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,"SF Pro Display","PingFang SC",sans-serif}
+        html,body{height:100%;margin:0;padding:0}
+        body{display:flex;min-height:100%;overflow:hidden;background:var(--bg-dark)}
+
+        /* ===== 左侧监控台 ===== */
+        .backend-panel{width:38%;background:var(--panel-dark);border-right:1px solid var(--border-dark);display:flex;flex-direction:column;padding:20px;overflow:hidden}
+        .backend-header{margin-bottom:16px;flex-shrink:0}
+        .backend-header h2{font-size:1.1rem;color:var(--text-dark-main);font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+        .tags-group{display:flex;gap:8px;flex-wrap:wrap}
+        .tag{background:#21262d;border:1px solid var(--border-dark);padding:3px 10px;border-radius:16px;font-size:.75rem;color:#58a6ff;font-weight:500;transition:all .3s}
+        .tag.ui-tag{color:#3fb950}.tag.phase-tag{color:#f0883e}
+        .tag.updated{animation:tagPulse .6s ease}
+        @keyframes tagPulse{0%{transform:scale(1)}50%{transform:scale(1.08);box-shadow:0 0 8px rgba(88,166,255,.4)}100%{transform:scale(1)}}
+        .ide-window{flex:1;background:#010409;border:1px solid var(--border-dark);border-radius:10px;padding:16px;overflow-y:auto;font-family:'JetBrains Mono','Courier New',monospace;font-size:.78rem;line-height:1.55;box-shadow:inset 0 2px 8px rgba(0,0,0,.5);position:relative;min-height:0}
+        .ide-window::before{content:attr(data-filename);position:absolute;top:0;left:0;background:var(--border-dark);color:var(--text-dark-sub);font-size:.65rem;padding:3px 10px;border-bottom-right-radius:6px}
+        .json-key{color:#79c0ff}.json-string{color:#a5d6ff}.json-number{color:#ff7b72}.json-boolean{color:#ff7b72}.json-null{color:#8b949e}
+        .strategy-card{margin-top:14px;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);padding:14px;border-radius:10px;flex-shrink:0;transition:all .3s}
+        .strategy-card.updated{animation:cardGlow .8s ease}
+        @keyframes cardGlow{0%{box-shadow:none}50%{box-shadow:0 0 12px rgba(139,92,246,.4)}100%{box-shadow:none}}
+        .strategy-card h3{font-size:.85rem;color:#b392f0;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+        .strategy-card p{font-size:.8rem;color:var(--text-dark-sub);line-height:1.5}
+        .kg-section{margin-top:12px;flex-shrink:0}
+        .kg-section h3{font-size:.8rem;color:var(--text-dark-sub);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+        .kg-breadcrumb{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+        .kg-crumb{font-size:.7rem;padding:2px 8px;border-radius:4px;font-weight:600}
+        .kg-crumb.l1{background:rgba(59,130,246,.15);color:#58a6ff}
+        .kg-crumb.l2{background:rgba(139,92,246,.15);color:#b392f0}
+        .kg-crumb.l3{background:rgba(16,185,129,.15);color:#3fb950}
+        .kg-crumb.l4{background:rgba(245,158,11,.15);color:#f0883e}
+        .kg-arrow{color:var(--text-dark-sub);font-size:.65rem}
+        .kg-dep-label{font-size:.65rem;color:var(--text-dark-sub);margin-bottom:4px}
+        .kg-dep-list{display:flex;flex-wrap:wrap;gap:4px}
+        .kg-dep-tag{font-size:.65rem;padding:1px 6px;border-radius:3px;background:#21262d;border:1px solid var(--border-dark);color:var(--text-dark-sub)}
+        .kg-dep-tag.pre{border-color:rgba(59,130,246,.3);color:#58a6ff}
+        .kg-dep-tag.post{border-color:rgba(16,185,129,.3);color:#3fb950}
+        .idea-section{margin-top:10px;flex-shrink:0}
+        .idea-section h3{font-size:.8rem;color:var(--text-dark-sub);margin-bottom:6px}
+        .idea-chip{display:inline-flex;align-items:center;gap:4px;font-size:.7rem;padding:3px 8px;border-radius:12px;background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.25);color:#b392f0;margin:2px;font-weight:500}
+        .idea-chip .idea-id{opacity:.7;font-size:.6rem}
+        .idea-cross{font-size:.65rem;color:var(--text-dark-sub);margin-top:4px;line-height:1.4;padding-left:4px;border-left:2px solid rgba(139,92,246,.3)}
+        .diag-timeline{margin-top:14px;flex-shrink:0;max-height:160px;overflow-y:auto}
+        .diag-timeline h3{font-size:.8rem;color:var(--text-dark-sub);margin-bottom:8px}
+        .tl-item{display:flex;gap:8px;margin-bottom:8px;font-size:.75rem;color:var(--text-dark-sub);animation:fadeIn .3s ease}
+        .tl-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0}
+        .tl-dot.wait{background:#484f58}.tl-dot.pass{background:#3fb950}.tl-dot.fail{background:#f85149}.tl-dot.info{background:#58a6ff}
+        .tl-text b{color:var(--text-dark-main)}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+        /* ===== 右侧：三区课堂布局 ===== */
+        .frontend-panel{width:62%;background:#f7f7f7;display:flex;flex-direction:column;position:relative;height:100%;min-height:500px;overflow:hidden}
+        .app-header{background:white;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.05);flex-shrink:0;z-index:10}
+        .app-title{font-size:.95rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+        .app-title .badge{background:linear-gradient(135deg,var(--accent),var(--primary));color:white;font-size:.65rem;padding:2px 8px;border-radius:10px;font-weight:600}
+        .progress-dots{display:flex;gap:5px;align-items:center}
+        .dot{width:8px;height:8px;border-radius:50%;background:var(--border);transition:all .3s}
+        .dot.active{background:var(--primary);width:22px;border-radius:4px}.dot.done{background:var(--success)}
+
+        /* --- 课件区（题干+板书 = 一页PPT） --- */
+        .courseware-slide{flex-shrink:0;max-height:50%;overflow-y:auto;background:white;margin:10px 12px 0;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.08);border:1px solid #e8e8e8;display:flex;flex-direction:column}
+        /* 题干区 */
+        .question-zone{flex-shrink:0;background:transparent;border-bottom:none}
+        .question-zone:empty{display:none}
+        .question-zone .question-card{margin:0;padding:16px 20px 12px;border-radius:0;border-left:none;box-shadow:none;background:transparent}
+        .question-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #f0f0f0}
+        .question-header .qh-icon{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--primary),#2563eb);display:flex;align-items:center;justify-content:center;font-size:.85rem;color:white;flex-shrink:0}
+        .question-header .qh-title{font-size:.85rem;font-weight:700;color:var(--text)}
+        .question-header .qh-badge{font-size:.6rem;font-weight:600;padding:2px 8px;border-radius:10px;background:#f0f5ff;color:var(--primary);margin-left:auto;flex-shrink:0}
+        .question-label{display:none}
+        .question-text{font-size:.95rem;line-height:1.8;color:var(--text);padding:0}
+        .question-text b{color:var(--primary);font-weight:700}
+        /* 板书区（课件下半部分，初始空白占位） */
+        .board-zone{flex:1;flex-shrink:0;overflow:hidden;border-top:1px dashed #e8e8e8;background:#fafffe;min-height:80px}
+        .board-zone:empty{min-height:80px;background:#fafffe}
+        .board-zone .board-header{padding:8px 14px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border-bottom:1px solid #dcfce7;font-size:.75rem;color:var(--ai-color);font-weight:700;display:flex;align-items:center;gap:6px}
+        .board-split{display:flex;gap:0;min-height:120px}
+        /* 左列：动画+关键提醒 */
+        .board-left{flex:0 0 42%;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;background:#fafffe}
+        .board-left .key-hint{margin-top:10px;font-size:.8rem;color:var(--ai-color);font-weight:600;text-align:center;padding:6px 10px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;animation:fadeIn .5s ease}
+        /* 右列：标准步骤 */
+        .board-right{flex:1;padding:14px;overflow-y:auto;max-height:220px}
+        .board-step{margin-bottom:8px;opacity:0;transform:translateX(-10px);animation:boardStepIn .5s ease forwards;font-size:.88rem;line-height:1.7;color:var(--text)}
+        .board-step .step-num{display:inline-block;width:22px;height:22px;border-radius:50%;background:var(--primary);color:white;font-size:.7rem;font-weight:700;text-align:center;line-height:22px;margin-right:6px}
+        .board-step .step-formula{display:inline-block;background:#eff6ff;padding:2px 10px;border-radius:6px;font-weight:700;color:var(--primary);font-family:'JetBrains Mono',monospace;margin:2px 0}
+        .board-step .step-result{color:var(--ai-color);font-weight:700}
+        @keyframes boardStepIn{to{opacity:1;transform:translateX(0)}}
+        .board-divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:6px 0}
+        .board-conclusion{font-size:.85rem;color:var(--ai-color);font-weight:700;padding:8px 12px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;opacity:0;animation:boardStepIn .5s ease forwards}
+        /* 动画区（在左列内） */
+        .visual-wrap{display:flex;justify-content:center;align-items:center;position:relative}
+        .tank{width:130px;height:105px;border:3px solid #94a3b8;border-top:none;border-radius:0 0 10px 10px;background:rgba(248,250,252,.5);position:relative}
+        .water{position:absolute;bottom:0;left:0;width:100%;background:rgba(56,189,248,.35);border-radius:0 0 7px 7px;transition:height 1.2s ease;display:flex;justify-content:center;align-items:flex-end;padding-bottom:8px}
+        .stone{width:40px;height:30px;background:linear-gradient(135deg,#94a3b8,#475569);border-radius:14px 20px 10px 18px;box-shadow:inset -3px -3px 8px rgba(0,0,0,.3);transform:translateY(-70px);opacity:0;transition:all .8s ease}
+        .stone.dropped{transform:translateY(0);opacity:1}
+        .water.raised{background:rgba(56,189,248,.5);height:80px!important}
+        .m-label{font-size:.65rem;font-weight:600;color:var(--text-sub);position:absolute;right:-55px;transition:opacity .5s}
+        .m-label.l1{bottom:45px}.m-label.l2{bottom:78px;color:var(--primary);opacity:0}.m-label.l2.show{opacity:1}
+        .delta-label{position:absolute;right:-65px;bottom:58px;font-size:.7rem;font-weight:700;color:var(--danger);opacity:0;transition:opacity .5s .5s;background:#fef2f2;padding:2px 5px;border-radius:4px}
+        .delta-label.show{opacity:1}
+
+        /* --- 对话互动区（微信风格） --- */
+        .chat-zone{flex:1;overflow-y:auto;padding:10px 0;scroll-behavior:smooth;min-height:180px;background:#f7f7f7}
+        .chat-section{padding:0 12px}
+        .msg-row{display:flex;margin-bottom:14px;animation:slideUp .3s ease forwards;opacity:0;transform:translateY(6px);align-items:flex-start}
+        @keyframes slideUp{to{opacity:1;transform:translateY(0)}}
+        .msg-ai{justify-content:flex-start}.msg-stu{justify-content:flex-end}
+        .avatar{width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+        .msg-ai .avatar{background:linear-gradient(135deg,#10b981,#059669);margin-right:10px;color:white}
+        .msg-stu .avatar{background:linear-gradient(135deg,var(--primary),#2563eb);margin-left:10px;color:white}
+        .bubble-wrap{max-width:75%;position:relative}.msg-stu .bubble-wrap{display:flex;flex-direction:column;align-items:flex-end}
+        .sender{font-size:.65rem;color:#999;margin-bottom:3px}
+        .bubble{padding:10px 14px;border-radius:6px;font-size:.9rem;line-height:1.65;position:relative;word-break:break-word}
+        .msg-ai .bubble{background:white;border:none;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+        .msg-ai .bubble::before{content:'';position:absolute;left:-6px;top:10px;width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;border-right:6px solid white}
+        .msg-stu .bubble{background:#95ec69;color:#000;border:none}
+        .msg-stu .bubble::before{content:'';position:absolute;right:-6px;top:10px;width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:6px solid #95ec69}
+        .bubble.hint{background:#fffbeb}.bubble.success{background:#f0fdf4}.bubble.error-hint{background:#fef2f2}
+        .msg-ai .bubble.hint::before{border-right-color:#fffbeb}.msg-ai .bubble.success::before{border-right-color:#f0fdf4}.msg-ai .bubble.error-hint::before{border-right-color:#fef2f2}
+
+        /* === 原子题目区块（降维选择题） === */
+        .scaffold-popup{margin:12px 0;background:white;border:2px solid #c7d2fe;border-radius:var(--radius);overflow:hidden;animation:fadeIn .4s ease;box-shadow:0 2px 8px rgba(139,92,246,.1)}
+        .scaffold-popup::before{content:'';display:block;height:3px;background:linear-gradient(90deg,var(--accent),var(--primary))}
+        .scaffold-label{font-size:.7rem;font-weight:700;color:white;background:var(--accent);padding:6px 14px;display:flex;align-items:center;gap:5px}
+        .scaffold-text{font-size:.9rem;line-height:1.7;color:var(--text);padding:12px 14px 8px;border-bottom:1px dashed #e0e7ff}
+        .scaffold-text b{color:var(--primary);font-weight:700}
+        .scaffold-choices{display:flex;flex-direction:column;gap:6px;padding:10px 14px 14px}
+        .scaffold-btn{background:#fafafe;border:2px solid var(--border);padding:10px 14px;border-radius:10px;font-size:.88rem;color:var(--text);text-align:left;cursor:pointer;transition:all .2s;line-height:1.4}
+        .scaffold-btn:hover{border-color:var(--accent);background:#f5f3ff}
+        .scaffold-btn.correct{border-color:var(--success);background:#f0fdf4;color:var(--success);font-weight:600}
+        .scaffold-btn.wrong{border-color:var(--danger);background:#fef2f2;color:var(--danger);opacity:.7}
+        .scaffold-btn:disabled{cursor:not-allowed}
+
+        /* === 诊断面板 === */
+        .diag-panel{margin:12px 0;background:white;border:1px solid #e0e7ff;border-left:4px solid var(--accent);border-radius:var(--radius);padding:14px;animation:fadeIn .5s ease}
+        .diag-title{font-size:.75rem;font-weight:700;color:var(--accent);margin-bottom:6px;display:flex;align-items:center;gap:5px}
+        .diag-body{font-size:.8rem;color:var(--text-sub);line-height:1.55}
+        .diag-tag{display:inline-block;background:white;border:1px solid #c7d2fe;padding:2px 7px;border-radius:4px;font-size:.7rem;color:var(--accent);margin:3px 3px 0 0;font-weight:600}
+
+        /* === 对话区分隔线（题目与对话之间） === */
+        .chat-divider{margin:14px 0 8px;display:flex;align-items:center;gap:8px;font-size:.7rem;color:var(--text-muted);font-weight:600}
+        .chat-divider::before,.chat-divider::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent)}
+        .options-group{margin:10px 14px;display:flex;flex-direction:column;gap:7px;animation:fadeIn .4s ease}
+        .opt-btn{background:white;border:2px solid var(--border);padding:12px 16px;border-radius:10px;font-size:.9rem;color:var(--text);text-align:left;cursor:pointer;transition:all .2s;line-height:1.4}
+        .opt-btn:hover{border-color:var(--primary);background:var(--primary-light)}
+        .opt-btn.selected{border-color:var(--primary);background:var(--primary-light);color:var(--primary);font-weight:600}
+        .result-card{margin:14px;background:white;border-radius:var(--radius);overflow:hidden;box-shadow:0 4px 10px rgba(0,0,0,.08);animation:fadeIn .5s ease}
+        .result-header{padding:14px 18px;font-weight:700;font-size:.95rem;color:white}
+        .result-header.pass{background:linear-gradient(135deg,#10b981,#059669)}.result-header.retry{background:linear-gradient(135deg,#f59e0b,#d97706)}.result-header.fail{background:linear-gradient(135deg,#ef4444,#dc2626)}
+        .result-body{padding:14px 18px}
+        .result-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:.85rem}
+        .result-row:last-child{border:none}.result-label{color:var(--text-sub)}.result-value{font-weight:600}
+        .next-btn{display:block;width:calc(100% - 28px);margin:10px 14px 20px;padding:14px;background:var(--primary);color:white;border:none;border-radius:10px;font-size:.95rem;font-weight:600;cursor:pointer;transition:all .2s}
+        .next-btn:hover{background:#2563eb}.next-btn.accent{background:var(--accent)}.next-btn.accent:hover{background:#7c3aed}
+        .kp-tag{display:inline-block;background:#f0fdf4;color:var(--ai-color);border:1px solid #bbf7d0;padding:2px 8px;border-radius:4px;font-size:.7rem;font-weight:600;margin:2px}
+        .kp-tag.unlock{background:#eff6ff;color:var(--primary);border-color:#bfdbfe}
+        .ability-bar{display:flex;align-items:center;gap:6px;margin:3px 0;font-size:.7rem}
+        .ability-bar .ab-name{width:60px;color:var(--text-sub);text-align:right;flex-shrink:0}
+        .ability-bar .ab-track{flex:1;height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden}
+        .ability-bar .ab-fill{height:100%;border-radius:3px;transition:width .6s ease}
+        .ab-fill.lv1{background:#f59e0b}.ab-fill.lv2{background:#3b82f6}.ab-fill.lv3{background:#10b981}
+        .topic-card{background:white;margin:10px 14px;padding:16px;border-radius:var(--radius);border:2px solid var(--border);cursor:pointer;transition:all .2s}
+        .topic-card:hover{border-color:var(--primary);box-shadow:0 4px 12px rgba(59,130,246,.15);transform:translateY(-1px)}
+        .tc-diff{font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:8px;display:inline-block;margin-bottom:6px}
+        .tc-diff.easy{background:#f0fdf4;color:var(--success)}.tc-diff.medium{background:#fffbeb;color:var(--warning)}.tc-diff.hard{background:#fef2f2;color:var(--danger)}
+        .tc-title{font-size:.95rem;font-weight:700;color:var(--text);margin-bottom:4px}
+        .tc-desc{font-size:.8rem;color:var(--text-sub);line-height:1.5}
+        .input-bar{flex-shrink:0;background:#f5f5f5;border-top:1px solid #d9d9d9;padding:8px 12px;display:flex;gap:8px;align-items:center;z-index:100}
+        .input-bar input{flex:1;border:1px solid #ddd;border-radius:6px;padding:9px 12px;font-size:.95rem;outline:none;transition:border-color .2s;background:white}
+        .input-bar input:focus{border-color:#07c160}.input-bar input::placeholder{color:#b2b2b2}.input-bar input:disabled{background:#f1f5f9}
+        .btn-submit{background:#07c160;color:white;border:none;width:44px;height:44px;border-radius:6px;font-size:1.1rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .btn-submit:hover{background:#06ad56}.btn-submit:disabled{background:#ccc;cursor:not-allowed}
+        .input-bar.hidden{display:none}
+        .voice-indicator{display:flex;align-items:center;gap:6px;margin-right:6px}
+        .voice-dot{width:6px;height:6px;border-radius:50%;background:var(--ai-color);animation:voicePulse 1.2s ease infinite}
+        .voice-dot:nth-child(2){animation-delay:.2s}.voice-dot:nth-child(3){animation-delay:.4s}
+        @keyframes voicePulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
+        .voice-label{font-size:.7rem;color:var(--ai-color);font-weight:500}
+        .question-text .char{display:inline;opacity:0;animation:charIn .06s ease forwards}
+        @keyframes charIn{to{opacity:1}}
+
+        /* === 讲解梯子进度条 === */
+        .ladder-progress{margin:12px 14px 4px;display:flex;align-items:center;gap:0}
+        .ladder-node{display:flex;align-items:center;gap:0}
+        .ladder-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;border:2px solid var(--border);background:white;color:var(--text-muted);transition:all .3s;position:relative}
+        .ladder-dot.active{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+        .ladder-dot.done{border-color:var(--success);background:#f0fdf4;color:var(--success)}
+        .ladder-dot.fail{border-color:var(--danger);background:#fef2f2;color:var(--danger)}
+        .ladder-dot.skip{border-color:var(--warning);background:#fffbeb;color:var(--warning)}
+        .ladder-line{width:24px;height:2px;background:var(--border);transition:background .3s}
+        .ladder-line.done{background:var(--success)}
+        .ladder-label{font-size:.6rem;color:var(--text-muted);position:absolute;top:32px;white-space:nowrap;left:50%;transform:translateX(-50%)}
+        .ladder-dot.active .ladder-label{color:var(--primary)}.ladder-dot.done .ladder-label{color:var(--success)}
+        /* === 验证题（内联在对话中） === */
+        .verify-card{margin:10px 0;background:white;border:2px solid #dbeafe;border-radius:var(--radius);overflow:hidden;animation:fadeIn .4s ease}
+        .verify-header{font-size:.7rem;font-weight:700;color:white;background:linear-gradient(135deg,var(--primary),#2563eb);padding:6px 14px;display:flex;align-items:center;gap:5px}
+        .verify-body{padding:12px 14px}
+        .verify-body .scaffold-choices{padding:8px 0 0}
+        /* === 错因定位面板 === */
+        .error-locate{margin:10px 0;background:#fef2f2;border:2px solid #fecaca;border-radius:var(--radius);padding:12px 14px;animation:fadeIn .4s ease}
+        .error-locate .el-title{font-size:.75rem;font-weight:700;color:var(--danger);margin-bottom:4px;display:flex;align-items:center;gap:5px}
+        .error-locate .el-dim{display:inline-block;background:white;border:1px solid #fecaca;padding:2px 8px;border-radius:4px;font-size:.7rem;color:var(--danger);font-weight:600;margin:3px 3px 0 0}
+        .error-locate .el-arrow{color:var(--text-muted);margin:0 4px}
+
+        /* === 关卡进度条 === */
+        .stage-bar{display:flex;gap:0;padding:6px 10px;background:white;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;align-items:center}
+        .stage-bar::-webkit-scrollbar{height:0}
+        .stage-item{display:flex;align-items:center;gap:0;flex-shrink:0}
+        .stage-btn{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;border:2px solid var(--border);background:white;font-size:.72rem;font-weight:600;color:var(--text-sub);cursor:pointer;transition:all .2s;white-space:nowrap}
+        .stage-btn:hover{border-color:var(--primary);background:var(--primary-light)}
+        .stage-btn.active{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+        .stage-btn.done{border-color:var(--success);background:#f0fdf4;color:var(--success)}
+        .stage-btn .stage-icon{font-size:.85rem}
+        .stage-btn .stage-check{display:none}.stage-btn.done .stage-check{display:inline}
+        .stage-connector{width:16px;height:2px;background:var(--border);flex-shrink:0}
+        .stage-connector.done{background:var(--success)}
+        .stage-lesson-progress{display:flex;align-items:center;gap:6px;margin-left:auto;padding-left:12px;flex-shrink:0}
+        .stage-lesson-progress .slp-label{font-size:.65rem;color:var(--text-muted)}
+        .stage-lesson-progress .slp-bar{width:60px;height:5px;background:#f1f5f9;border-radius:3px;overflow:hidden}
+        .stage-lesson-progress .slp-fill{height:100%;background:var(--success);border-radius:3px;transition:width .4s}
+
+        /* === 长方体可视化 === */
+        .cuboid-scene{perspective:500px;display:flex;justify-content:center;align-items:center;padding:8px}
+        .cuboid-3d{position:relative;width:100px;height:70px;transform-style:preserve-3d;transform:rotateX(-15deg) rotateY(-25deg)}
+        .cuboid-3d .c-face{position:absolute;border:2px solid rgba(59,130,246,.5);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;text-align:center;line-height:1.2;transition:all .5s}
+        .cuboid-3d .c-front{width:100px;height:56px;background:rgba(59,130,246,.08);transform:translateZ(21px);color:var(--primary)}
+        .cuboid-3d .c-right{width:42px;height:56px;background:rgba(139,92,246,.08);border-color:rgba(139,92,246,.5);transform:rotateY(90deg) translateZ(100px);left:-21px;color:var(--accent)}
+        .cuboid-3d .c-top{width:100px;height:42px;background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.5);transform:rotateX(90deg) translateZ(-7px);top:-21px;color:var(--ai-color)}
+        .cuboid-3d .c-face.highlight{animation:faceGlow 1s ease infinite alternate}
+        @keyframes faceGlow{from{box-shadow:inset 0 0 8px rgba(59,130,246,.2)}to{box-shadow:inset 0 0 16px rgba(59,130,246,.5)}}
+        .cuboid-dims{display:flex;gap:8px;margin-top:6px;justify-content:center}
+        .cuboid-dims span{font-size:.65rem;padding:2px 6px;border-radius:4px;font-weight:600}
+        .cuboid-dims .dim-l{background:rgba(59,130,246,.1);color:var(--primary)}
+        .cuboid-dims .dim-w{background:rgba(139,92,246,.1);color:var(--accent)}
+        .cuboid-dims .dim-h{background:rgba(16,185,129,.1);color:var(--ai-color)}
+
+        /* === 误解纠正卡片 === */
+        .misconception-card{margin:10px 0;background:#fff8f0;border:2px solid #fed7aa;border-radius:var(--radius);overflow:hidden;animation:fadeIn .4s ease}
+        .misconception-card::before{content:'';display:block;height:3px;background:linear-gradient(90deg,#f59e0b,#ef4444)}
+        .mc-header{font-size:.7rem;font-weight:700;color:white;background:linear-gradient(135deg,#f59e0b,#ea580c);padding:6px 14px;display:flex;align-items:center;gap:5px}
+        .mc-body{padding:12px 14px;font-size:.85rem;line-height:1.65;color:var(--text)}
+        .mc-type{display:inline-block;font-size:.65rem;font-weight:600;padding:2px 8px;border-radius:4px;background:#fef3c7;color:#92400e;margin-top:6px}
+    </style>
+</head>
+<body>
+
+<!-- ============ 左侧监控台 ============ -->
+<div class="backend-panel">
+    <div class="backend-header">
+        <h2>🌐 诊断引擎监控台</h2>
+        <div class="tags-group">
+            <div class="tag phase-tag" id="tagPhase">Phase: 选题中</div>
+            <div class="tag" id="tagSolo">SOLO: —</div>
+            <div class="tag ui-tag" id="tagTriple">Triple Code: A(言语码)</div>
+        </div>
+    </div>
+    <div class="ide-window" id="jsonView" data-filename="AI_Agent_Payload.json">
+        <span class="json-key">"Status"</span>: <span class="json-string">"等待选择题目..."</span>
+    </div>
+    <div class="strategy-card" id="strategyCard">
+        <h3 id="strategyTitle">💡 等待选题</h3>
+        <p id="strategyDesc">学生选择题目后启动诊断引擎</p>
+    </div>
+    <div class="kg-section" id="kgSection" style="display:none">
+        <h3>🗺️ 知识图谱定位</h3>
+        <div class="kg-breadcrumb" id="kgBreadcrumb"></div>
+        <div id="kgDeps"></div>
+    </div>
+    <div class="idea-section" id="ideaSection" style="display:none">
+        <h3>💡 思想连接</h3>
+        <div id="ideaChips"></div>
+        <div class="idea-cross" id="ideaCross"></div>
+    </div>
+    <div class="diag-timeline" id="timeline"><h3>📋 诊断时间线</h3></div>
+</div>
+
+<!-- ============ 右侧：三区课堂布局 ============ -->
+<div class="frontend-panel">
+    <div class="app-header">
+        <div class="app-title"><span>🐬 AI 诊断</span><span class="badge">自适应</span></div>
+        <div class="progress-dots" id="progressDots">
+            <div class="dot active"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        </div>
+    </div>
+    <!-- 关卡进度条 -->
+    <div class="stage-bar" id="stageBar"></div>
+    <!-- 课件区：题干+板书 = 一页PPT -->
+    <div class="courseware-slide" id="coursewareSlide">
+        <div class="question-zone" id="questionZone"></div>
+        <div class="board-zone" id="boardZone"></div>
+    </div>
+    <!-- 对话互动区：滚动 -->
+    <div class="chat-zone" id="chatZone"></div>
+    <!-- 输入栏 -->
+    <div class="input-bar hidden" id="inputBar">
+        <div class="voice-indicator"><div class="voice-dot"></div><div class="voice-dot"></div><div class="voice-dot"></div><span class="voice-label">语音</span></div>
+        <input type="text" id="answerInput" placeholder="说出你的想法..." autocomplete="off">
+        <button class="btn-submit" id="submitBtn" onclick="Engine.handleSubmit()">→</button>
+    </div>
+</div>
+
+<script>
+// ================================================================
+// V2: 错因驱动诊断 + 分步讲解梯子（自包含Demo）
+// ================================================================
+var _QDATA = {
+"MAIN_QUESTIONS":["Q-007","Q-001","Q-002","Q-003","Q-004","Q-005","Q-006"],
+"TOPIC_INFO":{
+    "Q-007":{"name":"长方体表面积","desc":"已知长宽高 → 求长方体表面积（基于AI课物料）","diff":"easy","diffLabel":"基础","icon":"📐"},
+    "Q-001":{"name":"排水法求体积","desc":"物体浸没水中，水面上升 → 求物体体积","diff":"easy","diffLabel":"基础","icon":"🌊"},
+    "Q-002":{"name":"排水法逆运算","desc":"已知物体体积和容器底面积 → 求水面上升高度","diff":"medium","diffLabel":"进阶","icon":"🧊"},
+    "Q-003":{"name":"排水法求边长","desc":"排水法求体积 + 体积公式求未知边长（两步）","diff":"hard","diffLabel":"挑战","icon":"🏗️"},
+    "Q-004":{"name":"相遇问题","desc":"两人相向而行，已知速度和距离 → 求相遇时间","diff":"medium","diffLabel":"进阶","icon":"🚗"},
+    "Q-005":{"name":"乘法简便计算","desc":"利用乘法结合律拆数凑整 → 简便计算","diff":"easy","diffLabel":"基础","icon":"🧮"},
+    "Q-006":{"name":"分数乘法应用","desc":"理解'它的几分之几'→ 求具体量","diff":"medium","diffLabel":"进阶","icon":"📊"}
+},
+"QUESTION_BANK":{
+    // ===================== Q-001 排水法求体积 =====================
+    "Q-001":{
+        "id":"Q-001","title":"排水法求体积","grade":"五下",
+        "pattern":"EP-139 完全浸没求体积(排水法)",
+        "fourDim":{"D1":"TRANSFORM","D2":"D3_FORWARD_MULTI","I":"I2_HIDDEN","C":"C2_INTRA_MODULE"},
+        "knowledge":{"L1":"图形与几何","L2":"立体图形的认识与测量","L3":"体积计算","L4":"长方体的体积计算"},
+        "ideas":["ID-201 形体转化","ID-501 等量代换"],
+        "text":"一个长方体鱼缸，底面长 <b>30</b> cm、宽 <b>20</b> cm，将一座假山完全浸没在水中后，水面上升了 <b>2</b> cm。这座假山的体积是多少立方厘米？",
+        "answer":1200,"unit":"cm³",
+        "visual":{"type":"tank","labels":{"before":"水面","after":"上升后","delta":"Δh=2cm"}},
+        "correctFeedback":"🎉 <b>完全正确！</b>假山体积 = 30 × 20 × 2 = 1200 cm³",
+        "correctDiagTags":["排水法原理 ✓","V=S×h ✓","等量代换 ✓"],
+        "defaultFeedback":"假山浸没后水面升高了 2cm，这部分升高的水就是一个长方体。",
+        "errorPatterns":{
+            "600":{"type":"部分正确(漏乘高度)","failDim":"D2","targetStep":3,
+                "feedback":"<b>600</b> 是底面积（30×20），体积还要乘高度 <b>2</b> cm。",
+                "diagTags":["底面积 ✓","漏乘高度"]},
+            "60":{"type":"数据提取错误","failDim":"D3","targetStep":2,
+                "feedback":"<b>60</b> 不对，重新看看：底面长30、宽20，水面升高2cm。",
+                "diagTags":["Err: 数据提取错误"]},
+            "1800":{"type":"冗余数据干扰","failDim":"D3","targetStep":2,
+                "feedback":"<b>1800</b> 不对。升高的水：底面积=30×20，高=<b>2</b> cm。",
+                "diagTags":["Err: 数据混淆"]}
+        },
+        "teachingLadder":[
+            {"id":"S1","name":"情境还原","dim":"D3",
+             "aiAsk":"水面上升了2cm，这<b>升高的2cm水</b>是什么形状？",
+             "acceptKeywords":["长方体","长方形","方块","立方"],
+             "boardStep":"<span class=\"step-num\">1</span>升高的水 → <b>长方体</b>形状",
+             "boardHint":"升高的水是一个长方体！",
+             "correctResponse":"对！升高的水是一个<b>长方体</b>！",
+             "hintOnWrong":"想一下——鱼缸是长方体，水面平平地升高了一截，这一截水是什么形状？",
+             "tellAnswer":"升高的水是一个<b>长方体</b>——鱼缸底面×升高高度。",
+             "misconceptions":[
+                 {"trigger":["梯形","三角","斜","倾斜"],"type":"心智模型错误：水面非平",
+                  "response":"你是不是觉得水会沿着石头斜着升上来？<b>不会的！</b>水是液体，不管石头什么形状，水面永远是<b>平的</b>。所以升高的那截水，底面和鱼缸一样大，是一个标准的<b>长方体</b>。",
+                  "boardHint":"水是液体 → 水面永远是平的！"},
+                 {"trigger":["圆","球","圆柱","圆形"],"type":"心智模型错误：形状投射",
+                  "response":"假山可能是不规则的，但升高的<b>水</b>不是！水会自动铺满鱼缸底面，水面是平的，所以升高的水是一个<b>长方体</b>（底面=鱼缸底面）。"},
+                 {"trigger":["不规则","奇怪","不知道什么形状","说不清"],"type":"空间想象困难",
+                  "response":"别想假山的形状——我们看的是<b>水</b>！鱼缸是长方形底面，水面是平的，升高2cm的水就是一个<b>长方体</b>：底面30×20，高2cm。"},
+                 {"trigger":["展示","图","看看","画","给我看","演示"],"type":"需要视觉辅助",
+                  "response":"好！看左边的动画——石头沉进水里后，水面<b>平平地</b>升高了一截。这升高的水（蓝色部分）就是一个<b>长方体</b>，底面跟鱼缸一样大。",
+                  "boardHint":"看动画：升高的水 = 长方体"}
+             ]},
+            {"id":"S2","name":"等量代换","dim":"D3",
+             "aiAsk":"这个升高的水长方体，和假山的体积有什么关系？",
+             "acceptKeywords":["等于","相等","一样","=","等量","代换","就是"],
+             "boardStep":"<span class=\"step-num\">2</span>原理：<span class=\"step-formula\">假山体积 = 升高的水体积</span>",
+             "correctResponse":"没错！<b>假山体积 = 升高的水体积</b>，这就是等量代换！",
+             "hintOnWrong":"假山完全浸没水中，水面升高的那部分，是被假山「挤」上来的。所以……？",
+             "tellAnswer":"<b>假山体积 = 升高的水体积</b>（等量代换原理）",
+             "misconceptions":[
+                 {"trigger":["不等","不一样","大于","小于","多","少","怎么可能"],"type":"等量代换直觉冲突",
+                  "response":"你觉得假山那么大一块，升高的水那么薄一层，体积不可能一样？其实是一样的！假山把水「挤」上来，升高的水底面很大（30×20=600cm²），虽然只有2cm高，但体积 = 600×2 = 1200cm³，跟假山一模一样！"},
+                 {"trigger":["为什么","为啥","凭什么","怎么","不理解"],"type":"需要原理解释",
+                  "response":"想象一下：假山完全泡在水里，它占了多少空间，水就被「挤」出来同样多的空间。水被挤到哪去了？往上升了！所以<b>升高的水体积 = 假山占掉的空间 = 假山体积</b>。"}
+             ]},
+            {"id":"S3","name":"数据提取","dim":"D3",
+             "aiAsk":"这个水长方体的<b>长、宽、高</b>分别是多少？",
+             "verify":"input","verifyAnswer":"30,20,2","verifyAccept":["30 20 2","30、20、2","30，20，2","长30宽20高2"],
+             "boardStep":"<span class=\"step-num\">3</span>关键数据：长 <b>30</b>，宽 <b>20</b>，高 <b>2</b> cm",
+             "correctResponse":"对！长<b>30</b>，宽<b>20</b>，高<b>2</b>cm。",
+             "hintOnWrong":"看题目——鱼缸底面长30cm、宽20cm，水面升高了<b>2</b>cm。哪三个数？",
+             "tellAnswer":"长<b>30</b>cm、宽<b>20</b>cm、高<b>2</b>cm。"},
+            {"id":"S4","name":"列式计算","dim":"D2",
+             "aiAsk":"好！用这三个数算出体积，<b>30 × 20 × 2 = ?</b>",
+             "verify":"number","verifyAnswer":1200,
+             "boardStep":"<span class=\"step-num\">4</span><span class=\"step-formula\">V = 30 × 20 × 2 = <span class=\"step-result\">1200 cm³</span></span>",
+             "correctResponse":"🎉 <b>1200 cm³</b>！完全正确！",
+             "hintOnWrong":"30×20=600，600×2=？一步步算~",
+             "tellAnswer":"30 × 20 × 2 = <b>1200 cm³</b>"}
+        ]
+    },
+    // ===================== Q-007 长方体表面积（基于AI课物料） =====================
+    "Q-007":{
+        "id":"Q-007","title":"长方体表面积","grade":"五下",
+        "pattern":"长方体表面积计算",
+        "fourDim":{"D1":"MEASURE","D2":"D2_FORWARD","I":"I0_RAW","C":"C1_SINGLE"},
+        "knowledge":{"L1":"图形与几何","L2":"立体图形的认识与测量","L3":"表面积计算","L4":"长方体的表面积计算"},
+        "ideas":["ID-201 形体转化"],
+        "text":"一个长方体，长 <b>5</b> cm，宽 <b>3</b> cm，高 <b>4</b> cm。<br>前面的面积：___；右面的面积：___；上面的面积：___；<br><b>表面积</b>：___。",
+        "answer":94,"unit":"cm²",
+        "visual":{"type":"cuboid","length":5,"width":3,"height":4},
+        "correctFeedback":"🎉 <b>完全正确！</b>(20+12+15) × 2 = <b>94 cm²</b>",
+        "correctDiagTags":["三对面 ✓","各面面积 ✓","×2 ✓"],
+        "defaultFeedback":"长方体有三对面：前后、左右、上下。表面积 = 三个不同面面积之和 × 2。",
+        "errorPatterns":{
+            "47":{"type":"忘记乘2","failDim":"D2","targetStep":3,
+                "feedback":"<b>47</b> = 20+12+15，是三个面的面积和。长方体有<b>三对</b>面，还要 ×2！",
+                "diagTags":["三个面 ✓","漏乘2"]},
+            "60":{"type":"混淆体积与表面积","failDim":"D3","targetStep":0,
+                "feedback":"<b>60</b> = 5×3×4，那是<b>体积</b>！题目问的是<b>表面积</b>（6个面的面积总和）。",
+                "diagTags":["Err: 算成体积"]},
+            "70":{"type":"漏算一对面","failDim":"D3","targetStep":1,
+                "feedback":"<b>70</b> 少算了一对面。长方体有<b>三对</b>面：前后(长×高)、左右(宽×高)、上下(长×宽)。",
+                "diagTags":["Err: 漏算一对面"]},
+            "40":{"type":"只算了前面×2","failDim":"D3","targetStep":1,
+                "feedback":"<b>40</b> = 5×4×2，只算了前后两面。还有左右面和上下面！",
+                "diagTags":["Err: 只算了一对面"]}
+        },
+        "teachingLadder":[
+            {"id":"S1","name":"识别三对面","dim":"D3",
+             "aiAsk":"长方体有 <b>几</b> 个面？哪些面是面积相等的？",
+             "acceptKeywords":["6","六","三对","3对","前后","左右","上下"],
+             "boardStep":"<span class=\"step-num\">1</span>长方体 <b>6</b> 个面 = <b>3 对</b>（前后、左右、上下）",
+             "boardHint":"相对的面面积相等！",
+             "correctResponse":"对！<b>6个面，3对</b>——前后、左右、上下，每对面积相等！",
+             "hintOnWrong":"长方体有上、下、前、后、左、右，总共几个面？相对的面可以配成几对？",
+             "tellAnswer":"<b>6个面，3对</b>：前后面、左右面、上下面。相对的面面积相等。",
+             "misconceptions":[
+                 {"trigger":["体积","长乘宽乘高","长×宽×高","5×3×4"],"type":"概念混淆：表面积vs体积",
+                  "response":"你想到的是<b>体积</b>（长×宽×高），但这题问的是<b>表面积</b>！体积 = 里面装多少东西，表面积 = 外面包了多少皮。表面积要算<b>6个面的面积</b>加起来。"},
+                 {"trigger":["4","四","4个","四个面"],"type":"空间想象遗漏",
+                  "response":"不是4个面哦！你可能忘了<b>上面和下面</b>。长方体有6个面：上、下、前、后、左、右。试着用手摸一下你身边的盒子~"},
+                 {"trigger":["8","八","8个"],"type":"面和棱混淆",
+                  "response":"8 是长方体的<b>顶点数</b>，不是面数。长方体有 <b>6个面</b>、12条棱、8个顶点。面是平的那些面，数一数：上、下、前、后、左、右。"}
+             ]},
+            {"id":"S2","name":"算各面面积","dim":"D3",
+             "aiAsk":"前面 = 长×高 = 5×4 = <b>20</b> cm²<br>右面 = 宽×高 = 3×4 = <b>12</b> cm²<br>上面 = 长×宽 = 5×3 = ?",
+             "verify":"number","verifyAnswer":15,
+             "boardStep":"<span class=\"step-num\">2</span>前面 <b>20</b> ｜ 右面 <b>12</b> ｜ 上面 <span class=\"step-formula\">5×3 = 15</span>",
+             "correctResponse":"对！上面 = 5×3 = <b>15</b> cm²",
+             "hintOnWrong":"上面是长方体的顶面，面积 = 长×宽 = 5×3 = ?",
+             "tellAnswer":"上面 = 长×宽 = 5×3 = <b>15</b> cm²"},
+            {"id":"S3","name":"三面求和","dim":"D2",
+             "aiAsk":"三个不同面面积之和：<b>20 + 12 + 15</b> = ?",
+             "verify":"number","verifyAnswer":47,
+             "boardStep":"<span class=\"step-num\">3</span>三面之和：<span class=\"step-formula\">20 + 12 + 15 = 47</span>",
+             "correctResponse":"对！三个面面积之和 = <b>47</b>",
+             "hintOnWrong":"20 + 12 = 32，32 + 15 = ?",
+             "tellAnswer":"20 + 12 + 15 = <b>47</b>"},
+            {"id":"S4","name":"×2得表面积","dim":"D2",
+             "aiAsk":"每对面都有 <b>2个</b>，所以表面积 = 47 × 2 = ?",
+             "verify":"number","verifyAnswer":94,
+             "boardStep":"<span class=\"step-num\">4</span><span class=\"step-formula\">表面积 = 47 × 2 = <span class=\"step-result\">94 cm²</span></span>",
+             "boardHint":"(长×宽+长×高+宽×高)×2",
+             "correctResponse":"🎉 <b>94 cm²</b>！记住公式：<b>(长×宽+长×高+宽×高)×2</b>",
+             "hintOnWrong":"47 × 2 = ?",
+             "tellAnswer":"47 × 2 = <b>94 cm²</b>。公式：(长×宽+长×高+宽×高)×2"}
+        ]
+    },
+    // ===================== Q-002 排水法逆运算 =====================
+    "Q-002":{
+        "id":"Q-002","title":"排水法逆运算","grade":"五下",
+        "pattern":"EP-140 浸没后求水面变化高度",
+        "fourDim":{"D1":"TRANSFORM","D2":"D2_REVERSE","I":"I2_HIDDEN","C":"C2_INTRA_MODULE"},
+        "knowledge":{"L1":"图形与几何","L2":"立体图形的认识与测量","L3":"体积计算","L4":"长方体的体积计算"},
+        "ideas":["ID-201 形体转化","ID-501 等量代换"],
+        "text":"石头体积 <b>180</b> cm³，完全浸没在底面长 <b>15</b> cm、宽 <b>10</b> cm 的鱼缸中，水面上升多少厘米？",
+        "answer":1.2,"unit":"cm",
+        "visual":{"type":"tank","labels":{"before":"水面","after":"上升后","delta":"Δh=?"}},
+        "correctFeedback":"🎉 <b>正确！</b>h = 180 ÷ 150 = <b>1.2 cm</b>",
+        "correctDiagTags":["V=S×h 逆运算 ✓","h=V÷S ✓"],
+        "defaultFeedback":"排水法逆运算：h = V ÷ S",
+        "errorPatterns":{
+            "150":{"type":"只算了底面积","failDim":"D2","targetStep":3,
+                "feedback":"<b>150</b> 是底面积，题目问的是<b>高度</b>。h = V ÷ S",
+                "diagTags":["底面积正确 ✓","逆运算未完成"]},
+            "27000":{"type":"乘法方向错误","failDim":"D2","targetStep":2,
+                "feedback":"需要<b>除法</b>：h = 180 ÷ 150。",
+                "diagTags":["Err: 运算方向反"]},
+            "12":{"type":"小数点错误","failDim":"D2","targetStep":3,
+                "feedback":"接近了！180÷150 = <b>1.2</b> 不是 12。",
+                "diagTags":["思路正确 ✓","计算误差"]}
+        },
+        "teachingLadder":[
+            {"id":"S1","name":"等量关系","dim":"D3",
+             "aiAsk":"石头浸没水中，水面升高。<b>升高的水体积</b>和什么相等？",
+             "acceptKeywords":["石头","体积","180","等于"],
+             "boardStep":"<span class=\"step-num\">1</span>原理：<span class=\"step-formula\">升高的水体积 = 石头体积 = 180 cm³</span>",
+             "correctResponse":"对！<b>升高的水体积 = 石头体积 = 180 cm³</b>",
+             "hintOnWrong":"石头浸入水中，水被「挤」上来。升高的水体积等于……？",
+             "tellAnswer":"<b>升高的水体积 = 石头体积 = 180 cm³</b>"},
+            {"id":"S2","name":"列出公式","dim":"D2",
+             "aiAsk":"升高的水是长方体：底面积已知，体积已知。要求<b>高</b>，用什么公式？",
+             "acceptKeywords":["除","÷","V÷S","体积÷底面积","h=V÷S","体积除以"],
+             "boardStep":"<span class=\"step-num\">2</span>公式：<span class=\"step-formula\">h = V ÷ S</span>（V=S×h 的逆运算）",
+             "correctResponse":"对！<b>h = V ÷ S</b>，这是 V=S×h 的逆运算！",
+             "hintOnWrong":"V = S × h，已知V和S，求h，怎么变形？",
+             "tellAnswer":"<b>h = V ÷ S</b>，V=S×h 的逆运算。"},
+            {"id":"S3","name":"代入数据","dim":"D3",
+             "aiAsk":"底面积 = 15×10 = <b>150</b>，体积 = <b>180</b>。h = 180 ÷ 150 = ?",
+             "verify":"number","verifyAnswer":1.2,
+             "boardStep":"<span class=\"step-num\">3</span><span class=\"step-formula\">h = 180 ÷ 150 = <span class=\"step-result\">1.2 cm</span></span>",
+             "correctResponse":"🎉 <b>1.2 cm</b>！",
+             "hintOnWrong":"180÷150，先约分：都除以30→6÷5=1.2",
+             "tellAnswer":"180 ÷ 150 = <b>1.2 cm</b>"}
+        ]
+    },
+    // ===================== Q-003 排水法求边长 =====================
+    "Q-003":{
+        "id":"Q-003","title":"排水法求边长","grade":"五下",
+        "pattern":"EP-142 排水法+体积公式联合求边长",
+        "fourDim":{"D1":"TRANSFORM","D2":"D3_FORWARD_MULTI","I":"I2_HIDDEN","C":"C3_CROSS_MODULE"},
+        "knowledge":{"L1":"图形与几何","L2":"立体图形的认识与测量","L3":"体积计算","L4":"长方体的体积计算"},
+        "ideas":["ID-201 形体转化","ID-501 等量代换","ID-302 逆运算"],
+        "text":"铁块底面积 <b>400</b> cm²，高未知。浸没在底面 <b>60</b>×<b>120</b> cm 容器中，水面上升 <b>2</b> cm。铁块高多少？",
+        "answer":36,"unit":"cm",
+        "correctFeedback":"🎉 <b>完美！</b>①60×120×2=14400 ②14400÷400=<b>36 cm</b>",
+        "correctDiagTags":["排水法 ✓","体积逆运算 ✓","两步推理 ✓"],
+        "defaultFeedback":"两步：①排水法求体积 ②体积÷铁块底面积=高",
+        "errorPatterns":{
+            "14400":{"type":"只做了一步(排水法)","failDim":"D4","targetStep":3,
+                "feedback":"<b>14400</b> 是铁块<b>体积</b>，题目问<b>高</b>。还需 ÷ 底面积400！",
+                "diagTags":["排水法 ✓","第二步未完成"]},
+            "7200":{"type":"容器底面积误用","failDim":"D3","targetStep":2,
+                "feedback":"<b>7200</b> 是容器底面积。容器底面积=60×120=<b>7200</b>，不是答案。",
+                "diagTags":["Err: 混淆容器/铁块"]},
+            "200":{"type":"除法对象错误","failDim":"D3","targetStep":3,
+                "feedback":"要除以<b>铁块底面积</b>400，不是容器尺寸。14400÷400=36",
+                "diagTags":["Err: 混淆两个底面积"]}
+        },
+        "teachingLadder":[
+            {"id":"S1","name":"排水法求体积","dim":"D3",
+             "aiAsk":"铁块浸没后水面升高2cm。<b>铁块的体积</b>怎么算？用哪些数据？",
+             "acceptKeywords":["60","120","2","乘","×","7200","14400"],
+             "boardStep":"<span class=\"step-num\">1</span>排水法：<span class=\"step-formula\">V铁块 = 60 × 120 × 2 = 14400 cm³</span>",
+             "correctResponse":"对！容器底面 60×120，升高 2cm → <b>V = 14400 cm³</b>",
+             "hintOnWrong":"容器底面是 60×120，水面升高 2cm。升高的水体积 = 铁块体积 = ？",
+             "tellAnswer":"V铁块 = 60 × 120 × 2 = <b>14400 cm³</b>"},
+            {"id":"S2","name":"区分两个底面积","dim":"D3",
+             "aiAsk":"注意！题目里有<b>两个底面积</b>。容器底面积是？铁块底面积是？",
+             "acceptKeywords":["7200","400","容器7200","铁块400"],
+             "boardStep":"<span class=\"step-num\">2</span>容器底面积 <b>7200</b> cm² ≠ 铁块底面积 <b>400</b> cm²",
+             "correctResponse":"对！容器 60×120=<b>7200</b>，铁块=<b>400</b>。千万别混！",
+             "hintOnWrong":"容器底面 60×120=？ 铁块底面积题目直接给了=？两个不一样！",
+             "tellAnswer":"容器底面积=60×120=<b>7200</b> cm²，铁块底面积=<b>400</b> cm²"},
+            {"id":"S3","name":"逆运算求高","dim":"D2",
+             "aiAsk":"体积 <b>14400</b> ÷ 铁块底面积 <b>400</b> = 铁块高 = ?",
+             "verify":"number","verifyAnswer":36,
+             "boardStep":"<span class=\"step-num\">3</span><span class=\"step-formula\">h = 14400 ÷ 400 = <span class=\"step-result\">36 cm</span></span>",
+             "correctResponse":"🎉 <b>36 cm</b>！两步完美！",
+             "hintOnWrong":"14400÷400，先约掉两个0：144÷4=36",
+             "tellAnswer":"14400 ÷ 400 = <b>36 cm</b>"}
+        ]
+    },
+    // ===================== Q-004 相遇问题（应用题） =====================
+    "Q-004":{
+        "id":"Q-004","title":"相遇问题","grade":"五上",
+        "pattern":"EP-078 相遇问题求时间",
+        "fourDim":{"D1":"DYNAMIC_CHANGE","D2":"D2_REVERSE","I":"I2_HIDDEN","C":"C2_INTRA_MODULE"},
+        "knowledge":{"L1":"数与代数","L2":"常见的数量关系","L3":"行程问题","L4":"相遇问题"},
+        "ideas":["ID-101 对应思想","ID-401 方程思想"],
+        "text":"小明和小红从相距 <b>540</b> 米的两地<b>同时出发，相向而行</b>。小明每分钟走 <b>60</b> 米，小红每分钟走 <b>30</b> 米。几分钟后两人相遇？",
+        "answer":6,"unit":"分钟",
+        "correctFeedback":"🎉 <b>正确！</b>540 ÷ (60+30) = 540 ÷ 90 = <b>6 分钟</b>",
+        "correctDiagTags":["速度和 ✓","路程÷速度和=时间 ✓"],
+        "defaultFeedback":"相向而行 → 每分钟靠近的距离 = 两人速度之和。",
+        "errorPatterns":{
+            "9":{"type":"只用一人速度(小明)","failDim":"D3","targetStep":1,
+                "feedback":"<b>9</b> = 540÷60，只算了小明。小红也在走！两人<b>同时</b>靠近。",
+                "diagTags":["Err: 漏掉一人速度"]},
+            "18":{"type":"只用一人速度(小红)","failDim":"D3","targetStep":1,
+                "feedback":"<b>18</b> = 540÷30，只算了小红。小明也在走呀！",
+                "diagTags":["Err: 漏掉一人速度"]},
+            "90":{"type":"只算速度和","failDim":"D2","targetStep":2,
+                "feedback":"<b>90</b> 是每分钟靠近的距离（速度和），还要用总路程来除！",
+                "diagTags":["速度和 ✓","未完成除法"]}
+        },
+        "teachingLadder":[
+            {"id":"S1","name":"理解相向而行","dim":"D3",
+             "aiAsk":"两人<b>相向而行</b>，每过1分钟，两人之间的距离会怎样变化？",
+             "acceptKeywords":["缩短","减少","靠近","近","少","短"],
+             "boardStep":"<span class=\"step-num\">1</span>相向而行 → 每分钟距离<b>缩短</b>",
+             "boardHint":"相向 = 面对面走，越来越近！",
+             "correctResponse":"对！相向而行，距离越来越<b>短</b>！",
+             "hintOnWrong":"相向 = 面对面走。两个人都在往中间走，距离会变长还是变短？",
+             "tellAnswer":"相向而行 = 面对面走，距离越来越<b>短</b>。"},
+            {"id":"S2","name":"求速度和","dim":"D3",
+             "aiAsk":"小明走60米/分，小红走30米/分。每分钟两人<b>共</b>靠近多少米？",
+             "verify":"number","verifyAnswer":90,
+             "boardStep":"<span class=\"step-num\">2</span>速度和：<span class=\"step-formula\">60 + 30 = 90 米/分</span>",
+             "correctResponse":"对！每分钟靠近 <b>90</b> 米！",
+             "hintOnWrong":"两个人都在走！小明每分钟60，小红每分钟30，加起来？",
+             "tellAnswer":"速度和 = 60 + 30 = <b>90 米/分</b>"},
+            {"id":"S3","name":"列式求时间","dim":"D2",
+             "aiAsk":"总距离 <b>540</b> 米，每分钟靠近 <b>90</b> 米。几分钟相遇？540 ÷ 90 = ?",
+             "verify":"number","verifyAnswer":6,
+             "boardStep":"<span class=\"step-num\">3</span><span class=\"step-formula\">t = 540 ÷ 90 = <span class=\"step-result\">6 分钟</span></span>",
+             "correctResponse":"🎉 <b>6 分钟</b>！完美！",
+             "hintOnWrong":"540 ÷ 90，54 ÷ 9 = 6",
+             "tellAnswer":"540 ÷ 90 = <b>6 分钟</b>"}
+        ]
+    },
+    // ===================== Q-005 乘法简便计算（巧算题） =====================
+    "Q-005":{
+        "id":"Q-005","title":"乘法简便计算","grade":"五上",
+        "pattern":"EP-031 乘法结合律简便计算",
+        "fourDim":{"D1":"AGGREGATE","D2":"D2_REVERSE","I":"I1_SHALLOW","C":"C1_SINGLE"},
+        "knowledge":{"L1":"数与代数","L2":"数的运算","L3":"运算律","L4":"乘法结合律"},
+        "ideas":["ID-601 化归思想","ID-102 分解组合"],
+        "text":"用<b>简便方法</b>计算：<b>125 × 32</b> = ?",
+        "answer":4000,"unit":"",
+        "correctFeedback":"🎉 <b>正确！</b>125 × 32 = 125 × 8 × 4 = 1000 × 4 = <b>4000</b>",
+        "correctDiagTags":["拆数 ✓","凑整 ✓","乘法结合律 ✓"],
+        "defaultFeedback":"简便计算的关键：把32拆开，凑出整百整千。",
+        "errorPatterns":{
+            "3750":{"type":"拆成30+2","failDim":"D2","targetStep":0,
+                "feedback":"<b>3750</b> = 125×30？拆成30和2不够简便。试试把32拆成 <b>8×4</b>！",
+                "diagTags":["拆数方向不对"]},
+            "250":{"type":"125×2","failDim":"D2","targetStep":1,
+                "feedback":"125×2=250 没错，但32不是2！<b>32 = 8×4</b>，先乘8更好。",
+                "diagTags":["Err: 拆数不完整"]},
+            "1000":{"type":"只算了125×8","failDim":"D2","targetStep":2,
+                "feedback":"<b>1000</b> = 125×8 ✓ 但还要 ×4！32 = 8×<b>4</b>。",
+                "diagTags":["凑整 ✓","漏乘4"]}
+        },
+        "teachingLadder":[
+            {"id":"S1","name":"拆数策略","dim":"D2",
+             "aiAsk":"125 和哪个数相乘能凑成<b>整千</b>？125 × ? = 1000",
+             "verify":"number","verifyAnswer":8,
+             "boardStep":"<span class=\"step-num\">1</span>关键发现：<span class=\"step-formula\">125 × 8 = 1000</span>",
+             "correctResponse":"对！<b>125 × 8 = 1000</b>，这是简便计算的钥匙！",
+             "hintOnWrong":"125 × 2 = 250，125 × 4 = 500，125 × 8 = ?",
+             "tellAnswer":"<b>125 × 8 = 1000</b>，记住这个！"},
+            {"id":"S2","name":"拆32","dim":"D2",
+             "aiAsk":"32 里面有 8 吗？<b>32 = 8 × ?</b>",
+             "verify":"number","verifyAnswer":4,
+             "boardStep":"<span class=\"step-num\">2</span>拆数：<span class=\"step-formula\">32 = 8 × 4</span>",
+             "correctResponse":"对！<b>32 = 8 × 4</b>！",
+             "hintOnWrong":"8 × 4 = ?  是不是32？",
+             "tellAnswer":"<b>32 = 8 × 4</b>"},
+            {"id":"S3","name":"凑整计算","dim":"D2",
+             "aiAsk":"现在：125 × 32 = 125 × 8 × 4 = <b>1000 × 4</b> = ?",
+             "verify":"number","verifyAnswer":4000,
+             "boardStep":"<span class=\"step-num\">3</span><span class=\"step-formula\">125 × 8 × 4 = 1000 × 4 = <span class=\"step-result\">4000</span></span>",
+             "correctResponse":"🎉 <b>4000</b>！简便又准确！",
+             "hintOnWrong":"1000 × 4 = ?",
+             "tellAnswer":"1000 × 4 = <b>4000</b>"}
+        ]
+    },
+    // ===================== Q-006 分数乘法应用（概念题） =====================
+    "Q-006":{
+        "id":"Q-006","title":"分数乘法应用","grade":"五下",
+        "pattern":"EP-095 求一个数的几分之几是多少",
+        "fourDim":{"D1":"AGGREGATE","D2":"D2_FORWARD","I":"I2_HIDDEN","C":"C1_SINGLE"},
+        "knowledge":{"L1":"数与代数","L2":"数的运算","L3":"分数乘法","L4":"分数乘整数"},
+        "ideas":["ID-101 对应思想"],
+        "text":"一根绳子长 <b>4</b> 米，截去它的 <b>¾</b>，截去了多少米？",
+        "answer":3,"unit":"米",
+        "correctFeedback":"🎉 <b>正确！</b>4 × ¾ = <b>3 米</b>",
+        "correctDiagTags":["分率对应 ✓","分数×整数 ✓"],
+        "defaultFeedback":"「它的¾」→ 4米的¾ → 4 × ¾",
+        "errorPatterns":{
+            "0.75":{"type":"分率当长度","failDim":"D3","targetStep":0,
+                "feedback":"<b>0.75</b> = ¾ 是分率，不是长度。题目问截去了<b>多少米</b>，要用4米 × ¾。",
+                "diagTags":["Err: 分率≠具体量"]},
+            "1":{"type":"理解为平均分取1段","failDim":"D3","targetStep":0,
+                "feedback":"<b>1</b> 是¼，不是¾。截去¾ = 截去4段里的<b>3段</b>。",
+                "diagTags":["Err: 分子分母混淆"]},
+            "16":{"type":"乘以4/3","failDim":"D2","targetStep":1,
+                "feedback":"是 4 × ¾ 不是 4 ÷ ¾。截去「它的¾」= 乘以¾。",
+                "diagTags":["Err: 乘除方向反"]}
+        },
+        "teachingLadder":[
+            {"id":"S1","name":"理解'它的¾'","dim":"D3",
+             "aiAsk":"「截去<b>它的¾</b>」——这里的「它」指的是什么？¾是谁的¾？",
+             "acceptKeywords":["绳子","4米","绳","它","全长"],
+             "boardStep":"<span class=\"step-num\">1</span>「它的¾」→「<b>4米</b>的¾」",
+             "boardHint":"「它」= 绳子 = 4米",
+             "correctResponse":"对！「它」就是这根<b>4米</b>的绳子！",
+             "hintOnWrong":"题目说「一根绳子长4米，截去它的¾」，「它」代指……？",
+             "tellAnswer":"「它」= 绳子 = <b>4米</b>。"},
+            {"id":"S2","name":"分率→乘法","dim":"D2",
+             "aiAsk":"求「4米的¾」用什么运算？怎么列式？",
+             "acceptKeywords":["乘","×","4×","乘以"],
+             "boardStep":"<span class=\"step-num\">2</span>列式：<span class=\"step-formula\">4 × ¾</span>（求一个数的几分之几 → <b>乘法</b>）",
+             "correctResponse":"对！求一个数的几分之几 → <b>乘法</b>！4 × ¾",
+             "hintOnWrong":"「求一个数的几分之几是多少」→ 用乘法。4 × ¾",
+             "tellAnswer":"求一个数的几分之几 → <b>乘法</b>：4 × ¾"},
+            {"id":"S3","name":"计算结果","dim":"D2",
+             "aiAsk":"4 × ¾ = ?",
+             "verify":"number","verifyAnswer":3,
+             "boardStep":"<span class=\"step-num\">3</span><span class=\"step-formula\">4 × ¾ = <span class=\"step-result\">3 米</span></span>",
+             "correctResponse":"🎉 <b>3 米</b>！",
+             "hintOnWrong":"4 × ¾ = 4×3÷4 = 12÷4 = ?",
+             "tellAnswer":"4 × ¾ = <b>3 米</b>"}
+        ]
+    },
+    // ===================== 辅助题（巩固+升维） =====================
+    "Q-001-C":{"id":"Q-001-C","title":"排水法巩固(取出)","fourDim":{"D1":"TRANSFORM","D2":"D3_FORWARD_MULTI","I":"I2_HIDDEN","C":"C2_INTRA_MODULE"},"knowledge":{"L4":"长方体的体积计算"},"ideas":["ID-201 形体转化","ID-501 等量代换"],"text":"鱼缸底面长 <b>30</b> cm、宽 <b>20</b> cm，将石头捞出后水面下降了 <b>0.3</b> cm。石头体积是多少 cm³？","answer":180,"unit":"cm³","correctFeedback":"🎉 <b>完美！</b>30 × 20 × 0.3 = <b>180 cm³</b>。","wrongHint":"下降的水体积 = 石头体积。30 × 20 × 0.3 = <b>180 cm³</b>","teachingLadder":[
+        {"id":"S1","name":"等量关系","dim":"D3","aiAsk":"石头捞出后水面<b>下降</b>了。下降的水体积和什么相等？","acceptKeywords":["石头","体积","等于","一样"],"boardStep":"<span class=\"step-num\">1</span><span class=\"step-formula\">下降的水体积 = 石头体积</span>","correctResponse":"对！<b>下降的水体积 = 石头体积</b>！","hintOnWrong":"石头占的空间没了，水就降下来了。下降的水=？","tellAnswer":"<b>下降的水体积 = 石头体积</b>"},
+        {"id":"S2","name":"代入计算","dim":"D2","aiAsk":"30 × 20 × 0.3 = ?","verify":"number","verifyAnswer":180,"boardStep":"<span class=\"step-num\">2</span><span class=\"step-formula\">V = 30 × 20 × 0.3 = <span class=\"step-result\">180 cm³</span></span>","correctResponse":"🎉 <b>180 cm³</b>！","hintOnWrong":"30×20=600，600×0.3=？","tellAnswer":"30 × 20 × 0.3 = <b>180 cm³</b>"}]},
+    "Q-001-UP":{"id":"Q-001-UP","title":"升维·溢出法","fourDim":{"D1":"TRANSFORM","D2":"D3_FORWARD_MULTI","I":"I3_DYNAMIC","C":"C2_INTRA_MODULE"},"knowledge":{"L4":"长方体的体积计算"},"ideas":["ID-201 形体转化","ID-501 等量代换"],"text":"长方体容器长 <b>20</b> cm，宽 <b>15</b> cm，高 <b>25</b> cm，装满水。放入铁块后溢出 <b>900</b> cm³ 水。铁块体积？","answer":900,"unit":"cm³","correctFeedback":"🎉🎉 <b>太强了！</b>装满水时溢出量 = 铁块体积 = <b>900 cm³</b>。","wrongHint":"容器<b>装满</b>水！溢出的水 = 铁块体积 = <b>900 cm³</b>","teachingLadder":[
+        {"id":"S1","name":"关键条件","dim":"D3","aiAsk":"容器<b>装满</b>水，放入铁块后水溢出。溢出的水体积等于什么？","acceptKeywords":["铁块","体积","等于","一样","溢出"],"boardStep":"<span class=\"step-num\">1</span><span class=\"step-formula\">装满时：溢出量 = 铁块体积</span>","correctResponse":"对！装满水时，<b>溢出量 = 铁块体积</b>！","hintOnWrong":"水已经满了，铁块挤进去，多出来的水就溢出了。溢出=？","tellAnswer":"装满水时，<b>溢出的水 = 铁块体积 = 900 cm³</b>"},
+        {"id":"S2","name":"读取答案","dim":"D2","aiAsk":"题目说溢出了 <b>900</b> cm³ 水。所以铁块体积 = ?","verify":"number","verifyAnswer":900,"boardStep":"<span class=\"step-num\">2</span><span class=\"step-formula\">铁块体积 = 溢出量 = <span class=\"step-result\">900 cm³</span></span>","correctResponse":"🎉 <b>900 cm³</b>！","hintOnWrong":"溢出量就是铁块体积，题目直接给了=？","tellAnswer":"铁块体积 = 溢出量 = <b>900 cm³</b>"}]},
+    "Q-007-C":{"id":"Q-007-C","title":"巩固·包彩纸","fourDim":{"D1":"MEASURE","D2":"D2_FORWARD","I":"I2_HIDDEN","C":"C1_SINGLE"},"knowledge":{"L4":"长方体的表面积计算"},"ideas":["ID-201 形体转化"],"text":"小明要给一个长 <b>20</b> cm、宽 <b>15</b> cm、高 <b>4</b> cm 的礼盒表面包一层彩纸，至少需要多少平方厘米的彩纸？","answer":880,"unit":"cm²","correctFeedback":"🎉 <b>完美！</b>(20×15+20×4+15×4)×2 = (300+80+60)×2 = <b>880 cm²</b>","wrongHint":"包彩纸 = 求表面积！(20×15+20×4+15×4)×2 = <b>880 cm²</b>","teachingLadder":[
+        {"id":"S1","name":"三个面面积","dim":"D3","aiAsk":"长20、宽15、高4。三个不同面面积分别是多少？<br>上面=20×15=? 前面=20×4=? 右面=15×4=?","acceptKeywords":["300","80","60"],"boardStep":"<span class=\"step-num\">1</span>上面 <b>300</b> ｜ 前面 <b>80</b> ｜ 右面 <b>60</b>","correctResponse":"对！300 + 80 + 60 = <b>440</b>","hintOnWrong":"上面=长×宽=20×15=300，前面=长×高=20×4=80，右面=宽×高=15×4=60","tellAnswer":"上面300，前面80，右面60"},
+        {"id":"S2","name":"×2求表面积","dim":"D2","aiAsk":"(300+80+60) × 2 = <b>440 × 2</b> = ?","verify":"number","verifyAnswer":880,"boardStep":"<span class=\"step-num\">2</span><span class=\"step-formula\">(300+80+60)×2 = <span class=\"step-result\">880 cm²</span></span>","correctResponse":"🎉 <b>880 cm²</b>！","hintOnWrong":"440 × 2 = ?","tellAnswer":"440 × 2 = <b>880 cm²</b>"}]},
+    "Q-007-UP":{"id":"Q-007-UP","title":"升维·无盖游泳池","fourDim":{"D1":"MEASURE","D2":"D3_FORWARD_MULTI","I":"I2_HIDDEN","C":"C2_INTRA_MODULE"},"knowledge":{"L4":"长方体的表面积计算"},"ideas":["ID-201 形体转化"],"text":"游泳池长 <b>25</b> 米、宽 <b>20</b> 米、深 <b>2</b> 米。给<b>四壁和下底面</b>贴瓷砖，面积是多少平方米？","answer":680,"unit":"m²","correctFeedback":"🎉🎉 <b>太强了！</b>无盖：(25×2+20×2)×2 + 25×20 = 180+500 = <b>680 m²</b>","wrongHint":"无盖！四壁+底面：(25×2+20×2)×2 + 25×20 = 180+500 = <b>680 m²</b>","teachingLadder":[
+        {"id":"S1","name":"识别无盖","dim":"D3","aiAsk":"游泳池<b>没有盖子</b>。需要算哪些面？","acceptKeywords":["四壁","底面","四面","侧面","下面","5个","五个"],"boardStep":"<span class=\"step-num\">1</span>无盖 → 只算<b>四壁 + 底面</b>（5个面）","correctResponse":"对！四壁 + 底面，<b>不算上面</b>！","hintOnWrong":"游泳池上面是开口的，不用贴瓷砖。要算哪些面？","tellAnswer":"无盖：只算<b>四壁+底面</b>"},
+        {"id":"S2","name":"分别计算","dim":"D2","aiAsk":"四壁：(25×2+20×2)×2=<b>180</b>，底面：25×20=<b>500</b>。总共 = ?","verify":"number","verifyAnswer":680,"boardStep":"<span class=\"step-num\">2</span><span class=\"step-formula\">180 + 500 = <span class=\"step-result\">680 m²</span></span>","correctResponse":"🎉 <b>680 m²</b>！","hintOnWrong":"180+500=？","tellAnswer":"180 + 500 = <b>680 m²</b>"}]},
+    "Q-002-C":{"id":"Q-002-C","title":"巩固·取出求下降","fourDim":{"D1":"TRANSFORM","D2":"D2_REVERSE","I":"I2_HIDDEN","C":"C2_INTRA_MODULE"},"knowledge":{"L4":"长方体的体积计算"},"ideas":["ID-501 等量代换"],"text":"鱼缸底面 15×10 cm，装饰物 5×3×2 cm。取出后水面下降多少？","answer":0.2,"unit":"cm","correctFeedback":"🎉 30÷150 = <b>0.2 cm</b>！","wrongHint":"装饰物 5×3×2=30 cm³，底面积 150 cm²，下降 30÷150 = <b>0.2 cm</b>","teachingLadder":[
+        {"id":"S1","name":"求装饰物体积","dim":"D3","aiAsk":"装饰物尺寸 5×3×2。体积 = ?","verify":"number","verifyAnswer":30,"boardStep":"<span class=\"step-num\">1</span><span class=\"step-formula\">V = 5×3×2 = 30 cm³</span>","correctResponse":"对！<b>30 cm³</b>！","hintOnWrong":"5×3=15，15×2=？","tellAnswer":"5×3×2 = <b>30 cm³</b>"},
+        {"id":"S2","name":"逆运算求高","dim":"D2","aiAsk":"底面积=15×10=150，体积30。h = 30 ÷ 150 = ?","verify":"number","verifyAnswer":0.2,"boardStep":"<span class=\"step-num\">2</span><span class=\"step-formula\">h = 30 ÷ 150 = <span class=\"step-result\">0.2 cm</span></span>","correctResponse":"🎉 <b>0.2 cm</b>！","hintOnWrong":"30÷150，都除以30→1÷5=0.2","tellAnswer":"30 ÷ 150 = <b>0.2 cm</b>"}]},
+    "Q-002-UP":{"id":"Q-002-UP","title":"升维·不同容器对比","fourDim":{"D1":"TRANSFORM","D2":"D3_FORWARD_MULTI","I":"I3_DYNAMIC","C":"C3_CROSS_MODULE"},"knowledge":{"L4":"长方体的体积计算"},"ideas":["ID-501 等量代换"],"text":"体积 <b>120</b> cm³ 的小球从底面积 200 cm² 的 A 缸取出，放入底面积 <b>150</b> cm² 的 B 缸。B 水面上升？","answer":0.8,"unit":"cm","correctFeedback":"🎉🎉 120÷150 = <b>0.8 cm</b>！底面积越大水面变化越小！","wrongHint":"小球体积 120 cm³，放入 B：120÷150 = <b>0.8 cm</b>（A 底面积是干扰！）","teachingLadder":[
+        {"id":"S1","name":"识别干扰数据","dim":"D3","aiAsk":"小球放入<b>B缸</b>。B缸底面积是多少？A缸底面积200有用吗？","acceptKeywords":["150","没用","干扰","不用","B"],"boardStep":"<span class=\"step-num\">1</span>B缸底面积 = <b>150</b> cm²（A缸200是干扰！）","correctResponse":"对！只看B缸：底面积<b>150</b>，A缸是干扰！","hintOnWrong":"球放入B缸，只跟B缸有关。B缸底面积=？","tellAnswer":"B缸底面积 = <b>150 cm²</b>（A缸是干扰数据）"},
+        {"id":"S2","name":"计算上升","dim":"D2","aiAsk":"h = 120 ÷ 150 = ?","verify":"number","verifyAnswer":0.8,"boardStep":"<span class=\"step-num\">2</span><span class=\"step-formula\">h = 120 ÷ 150 = <span class=\"step-result\">0.8 cm</span></span>","correctResponse":"🎉 <b>0.8 cm</b>！","hintOnWrong":"120÷150，都除以30→4÷5=0.8","tellAnswer":"120 ÷ 150 = <b>0.8 cm</b>"}]},
+    "Q-003-C":{"id":"Q-003-C","title":"巩固·排水法求高","fourDim":{"D1":"TRANSFORM","D2":"D3_FORWARD_MULTI","I":"I2_HIDDEN","C":"C3_CROSS_MODULE"},"knowledge":{"L4":"长方体的体积计算"},"ideas":["ID-501 等量代换"],"text":"铁块底面积 <b>200</b> cm²，浸没在底面积 500 cm² 容器中，水面上升 <b>3</b> cm。铁块高？","answer":7.5,"unit":"cm","correctFeedback":"🎉 500×3=1500，1500÷200=<b>7.5 cm</b>！","wrongHint":"①排水法：500×3=1500 ②铁块高=1500÷200=<b>7.5 cm</b>","teachingLadder":[
+        {"id":"S1","name":"排水法求体积","dim":"D3","aiAsk":"容器底面积500，水升3cm。铁块体积 = 500×3 = ?","verify":"number","verifyAnswer":1500,"boardStep":"<span class=\"step-num\">1</span><span class=\"step-formula\">V = 500×3 = 1500 cm³</span>","correctResponse":"对！<b>1500 cm³</b>！","hintOnWrong":"底面积×上升高度=体积，500×3=？","tellAnswer":"500×3 = <b>1500 cm³</b>"},
+        {"id":"S2","name":"÷铁块底面积","dim":"D2","aiAsk":"体积1500，铁块底面积200。高 = 1500 ÷ 200 = ?","verify":"number","verifyAnswer":7.5,"boardStep":"<span class=\"step-num\">2</span><span class=\"step-formula\">h = 1500 ÷ 200 = <span class=\"step-result\">7.5 cm</span></span>","correctResponse":"🎉 <b>7.5 cm</b>！","hintOnWrong":"1500÷200，15÷2=7.5","tellAnswer":"1500 ÷ 200 = <b>7.5 cm</b>"}]},
+    "Q-003-UP":{"id":"Q-003-UP","title":"升维·正方体求棱长","fourDim":{"D1":"TRANSFORM","D2":"D4_REVERSE_MULTI","I":"I3_DYNAMIC","C":"C3_CROSS_MODULE"},"knowledge":{"L4":"正方体的体积计算"},"ideas":["ID-501 等量代换"],"text":"正方体铁块浸没在 25×20 cm 容器中，水面上升 <b>2</b> cm。棱长是？","answer":10,"unit":"cm","correctFeedback":"🎉🎉 25×20×2=1000，10³=1000，棱长=<b>10 cm</b>！","wrongHint":"①排水法：25×20×2=1000 cm³ ②棱长³=1000 → 棱长=<b>10 cm</b>","teachingLadder":[
+        {"id":"S1","name":"排水法求体积","dim":"D3","aiAsk":"容器25×20，升高2cm。正方体体积 = 25×20×2 = ?","verify":"number","verifyAnswer":1000,"boardStep":"<span class=\"step-num\">1</span><span class=\"step-formula\">V = 25×20×2 = 1000 cm³</span>","correctResponse":"对！<b>1000 cm³</b>！","hintOnWrong":"25×20=500，500×2=？","tellAnswer":"25×20×2 = <b>1000 cm³</b>"},
+        {"id":"S2","name":"开立方求棱长","dim":"D2","aiAsk":"正方体体积=棱长³=1000。什么数的立方=1000？","verify":"number","verifyAnswer":10,"boardStep":"<span class=\"step-num\">2</span><span class=\"step-formula\">棱长³ = 1000 → 棱长 = <span class=\"step-result\">10 cm</span></span>","correctResponse":"🎉 <b>10 cm</b>！10×10×10=1000！","hintOnWrong":"10×10×10=？","tellAnswer":"10³ = 1000，棱长 = <b>10 cm</b>"}]},
+    "Q-004-C":{"id":"Q-004-C","title":"巩固·追及问题","fourDim":{"D1":"DYNAMIC_CHANGE","D2":"D2_REVERSE","I":"I2_HIDDEN","C":"C2_INTRA_MODULE"},"knowledge":{"L4":"追及问题"},"ideas":["ID-101 对应思想"],"text":"甲乙同向而行，甲在前、乙在后，相距 <b>200</b> 米。甲速 <b>50</b> 米/分，乙速 <b>90</b> 米/分。几分钟后乙追上甲？","answer":5,"unit":"分钟","correctFeedback":"🎉 200÷(90-50)=200÷40=<b>5 分钟</b>！","wrongHint":"追及：速度差=90-50=40，200÷40=<b>5 分钟</b>","teachingLadder":[
+        {"id":"S1","name":"求速度差","dim":"D3","aiAsk":"追及问题用<b>速度差</b>。乙比甲每分钟快多少？90-50 = ?","verify":"number","verifyAnswer":40,"boardStep":"<span class=\"step-num\">1</span><span class=\"step-formula\">速度差 = 90-50 = 40 米/分</span>","correctResponse":"对！每分钟追近 <b>40</b> 米！","hintOnWrong":"乙速90，甲速50，差=？","tellAnswer":"速度差 = 90-50 = <b>40 米/分</b>"},
+        {"id":"S2","name":"求追及时间","dim":"D2","aiAsk":"距离200米，每分钟近40米。200 ÷ 40 = ?","verify":"number","verifyAnswer":5,"boardStep":"<span class=\"step-num\">2</span><span class=\"step-formula\">t = 200 ÷ 40 = <span class=\"step-result\">5 分钟</span></span>","correctResponse":"🎉 <b>5 分钟</b>！","hintOnWrong":"200÷40=？","tellAnswer":"200 ÷ 40 = <b>5 分钟</b>"}]},
+    "Q-004-UP":{"id":"Q-004-UP","title":"升维·中途停下","fourDim":{"D1":"DYNAMIC_CHANGE","D2":"D3_FORWARD_MULTI","I":"I3_DYNAMIC","C":"C3_CROSS_MODULE"},"knowledge":{"L4":"相遇问题"},"ideas":["ID-101 对应思想"],"text":"甲乙相距 <b>1000</b> 米相向而行。甲速80米/分，乙速70米/分。4分钟后乙停下，甲继续走。从出发到相遇共几分钟？","answer":9,"unit":"分钟","correctFeedback":"🎉🎉 前4分走(80+70)×4=600米，剩400米，甲独行400÷80=5分，共<b>9 分钟</b>！","wrongHint":"分段：前4分两人走600米，剩400米，甲独行400÷80=5分，共4+5=<b>9 分钟</b>","teachingLadder":[
+        {"id":"S1","name":"前4分钟","dim":"D3","aiAsk":"前4分钟两人一起走，每分靠近80+70=150米。4分钟走了 150×4 = ?","verify":"number","verifyAnswer":600,"boardStep":"<span class=\"step-num\">1</span><span class=\"step-formula\">前4分：(80+70)×4 = 600 米</span>","correctResponse":"对！前4分走了 <b>600</b> 米！还剩1000-600=<b>400</b>米！","hintOnWrong":"速度和=150，×4分钟=？","tellAnswer":"(80+70)×4 = <b>600</b> 米，剩400米"},
+        {"id":"S2","name":"甲独行","dim":"D2","aiAsk":"剩400米，只有甲在走（速度80）。400 ÷ 80 = ?  总时间 = 4 + ? = ?","verify":"number","verifyAnswer":9,"boardStep":"<span class=\"step-num\">2</span><span class=\"step-formula\">400÷80=5分，总共 4+5 = <span class=\"step-result\">9 分钟</span></span>","correctResponse":"🎉 <b>9 分钟</b>！","hintOnWrong":"400÷80=5分，加上前面4分=？","tellAnswer":"400÷80=5，共4+5=<b>9 分钟</b>"}]},
+    "Q-005-C":{"id":"Q-005-C","title":"巩固·25×44","fourDim":{"D1":"AGGREGATE","D2":"D2_REVERSE","I":"I1_SHALLOW","C":"C1_SINGLE"},"knowledge":{"L4":"乘法结合律"},"ideas":["ID-601 化归思想"],"text":"简便计算：<b>25 × 44</b> = ?","answer":1100,"unit":"","correctFeedback":"🎉 25×4×11=100×11=<b>1100</b>！","wrongHint":"25×4=100，44=4×11，所以25×44=100×11=<b>1100</b>","teachingLadder":[
+        {"id":"S1","name":"拆数","dim":"D2","aiAsk":"25×4=100。44里有几个4？<b>44 = 4 × ?</b>","verify":"number","verifyAnswer":11,"boardStep":"<span class=\"step-num\">1</span><span class=\"step-formula\">44 = 4 × 11</span>","correctResponse":"对！<b>44 = 4 × 11</b>！","hintOnWrong":"44÷4=？","tellAnswer":"44 = 4 × <b>11</b>"},
+        {"id":"S2","name":"凑整计算","dim":"D2","aiAsk":"25 × 4 × 11 = 100 × 11 = ?","verify":"number","verifyAnswer":1100,"boardStep":"<span class=\"step-num\">2</span><span class=\"step-formula\">25×4×11 = 100×11 = <span class=\"step-result\">1100</span></span>","correctResponse":"🎉 <b>1100</b>！","hintOnWrong":"100×11=？","tellAnswer":"100 × 11 = <b>1100</b>"}]},
+    "Q-005-UP":{"id":"Q-005-UP","title":"升维·125×88","fourDim":{"D1":"AGGREGATE","D2":"D3_FORWARD_MULTI","I":"I2_HIDDEN","C":"C2_INTRA_MODULE"},"knowledge":{"L4":"乘法结合律"},"ideas":["ID-601 化归思想","ID-102 分解组合"],"text":"简便计算：<b>125 × 88</b> = ?","answer":11000,"unit":"","correctFeedback":"🎉🎉 125×8×11=1000×11=<b>11000</b>！","wrongHint":"88=8×11，125×8=1000，1000×11=<b>11000</b>","teachingLadder":[
+        {"id":"S1","name":"拆数","dim":"D2","aiAsk":"125×8=1000。88里有几个8？<b>88 = 8 × ?</b>","verify":"number","verifyAnswer":11,"boardStep":"<span class=\"step-num\">1</span><span class=\"step-formula\">88 = 8 × 11</span>","correctResponse":"对！<b>88 = 8 × 11</b>！","hintOnWrong":"88÷8=？","tellAnswer":"88 = 8 × <b>11</b>"},
+        {"id":"S2","name":"凑整计算","dim":"D2","aiAsk":"125 × 8 × 11 = 1000 × 11 = ?","verify":"number","verifyAnswer":11000,"boardStep":"<span class=\"step-num\">2</span><span class=\"step-formula\">125×8×11 = 1000×11 = <span class=\"step-result\">11000</span></span>","correctResponse":"🎉 <b>11000</b>！","hintOnWrong":"1000×11=？","tellAnswer":"1000 × 11 = <b>11000</b>"}]},
+    "Q-006-C":{"id":"Q-006-C","title":"巩固·剩下多少","fourDim":{"D1":"AGGREGATE","D2":"D2_FORWARD","I":"I2_HIDDEN","C":"C1_SINGLE"},"knowledge":{"L4":"分数乘整数"},"ideas":["ID-101 对应思想"],"text":"一桶油 <b>10</b> 千克，用去它的 <b>⅖</b>，还剩多少千克？","answer":6,"unit":"千克","correctFeedback":"🎉 用去10×⅖=4千克，剩10-4=<b>6 千克</b>！","wrongHint":"用去：10×⅖=4千克。剩下：10-4=<b>6 千克</b>","teachingLadder":[
+        {"id":"S1","name":"求用去多少","dim":"D2","aiAsk":"「用去它的⅖」→ 10 × ⅖ = ?","verify":"number","verifyAnswer":4,"boardStep":"<span class=\"step-num\">1</span><span class=\"step-formula\">用去 = 10 × ⅖ = 4 千克</span>","correctResponse":"对！用去 <b>4</b> 千克！","hintOnWrong":"10×2÷5=？","tellAnswer":"10 × ⅖ = <b>4 千克</b>"},
+        {"id":"S2","name":"求剩余","dim":"D2","aiAsk":"总共10千克，用去4千克。还剩 10 - 4 = ?","verify":"number","verifyAnswer":6,"boardStep":"<span class=\"step-num\">2</span><span class=\"step-formula\">剩余 = 10 - 4 = <span class=\"step-result\">6 千克</span></span>","correctResponse":"🎉 <b>6 千克</b>！","hintOnWrong":"10-4=？","tellAnswer":"10 - 4 = <b>6 千克</b>"}]},
+    "Q-006-UP":{"id":"Q-006-UP","title":"升维·分率vs具体量","fourDim":{"D1":"AGGREGATE","D2":"D3_FORWARD_MULTI","I":"I3_DYNAMIC","C":"C2_INTRA_MODULE"},"knowledge":{"L4":"分数乘整数"},"ideas":["ID-101 对应思想"],"text":"一根绳子长 <b>12</b> 米。第一次截去它的 <b>¼</b>，第二次截去 <b>¼ 米</b>。两次共截去多少米？","answer":3.25,"unit":"米","correctFeedback":"🎉🎉 第一次12×¼=3米，第二次0.25米，共<b>3.25 米</b>！「它的¼」≠「¼米」！","wrongHint":"注意区别！第一次：12×¼=<b>3米</b>（分率）。第二次：<b>0.25米</b>（具体量）。共3+0.25=<b>3.25 米</b>","teachingLadder":[
+        {"id":"S1","name":"区分分率和具体量","dim":"D3","aiAsk":"「它的¼」和「¼米」一样吗？第一次截去<b>它的¼</b> = 12×¼ = ?","verify":"number","verifyAnswer":3,"boardStep":"<span class=\"step-num\">1</span>第一次：12×¼ = <b>3米</b>（分率）<br>第二次：<b>0.25米</b>（具体量）","correctResponse":"对！12×¼=<b>3米</b>！而第二次只截了<b>0.25米</b>，完全不一样！","hintOnWrong":"「它的¼」= 12的四分之一 = 12×¼ = ？","tellAnswer":"12×¼ = <b>3米</b>（分率≠具体量！）"},
+        {"id":"S2","name":"求总和","dim":"D2","aiAsk":"第一次3米，第二次0.25米。共截去 3 + 0.25 = ?","verify":"number","verifyAnswer":3.25,"boardStep":"<span class=\"step-num\">2</span><span class=\"step-formula\">3 + 0.25 = <span class=\"step-result\">3.25 米</span></span>","correctResponse":"🎉 <b>3.25 米</b>！","hintOnWrong":"3+0.25=？","tellAnswer":"3 + 0.25 = <b>3.25 米</b>"}]}
+},
+"DIAGNOSIS_FLOWS":{
+    "Q-001":{"mainId":"Q-001","consolidateId":"Q-001-C","levelUpId":"Q-001-UP",
+        "consolidatePrompt":"这次把石头<b>捞出来</b>，水面下降了。原理一样！",
+        "levelUpPrompt":"容器<b>装满水</b>！放入铁块后水溢出。溢出的水=？",
+        "visualGuideText":"物体沉入水中，水面升高。<b>升高的水体积 = 物体体积</b>！",
+        "dagUnlock":["EP-140 求水面变化高度","EP-142 排水法+求边长"],
+        "boardConclusion":"物体体积 = 底面积 × 上升高度 ✨"},
+    "Q-007":{"mainId":"Q-007","consolidateId":"Q-007-C","levelUpId":"Q-007-UP",
+        "consolidatePrompt":"给礼盒包彩纸，本质就是求<b>表面积</b>！列式算一算~",
+        "levelUpPrompt":"游泳池<b>没有盖</b>！只需要算四壁+底面，少了哪个面？",
+        "visualGuideText":"长方体有三对面，表面积 = (长×宽+长×高+宽×高)×2",
+        "dagUnlock":["正方体表面积","无盖长方体表面积"],
+        "boardConclusion":"长方体表面积 = (长×宽+长×高+宽×高) × 2 ✨"},
+    "Q-002":{"mainId":"Q-002","consolidateId":"Q-002-C","levelUpId":"Q-002-UP",
+        "consolidatePrompt":"两步：先算体积再÷底面积。水面下降多少？",
+        "levelUpPrompt":"两个鱼缸底面积不同！B水面上升？",
+        "visualGuideText":"h = V ÷ S，V=S×h 的逆运算 ✨",
+        "dagUnlock":["EP-142 排水法+求边长"],
+        "boardConclusion":"h = V ÷ S ✨"},
+    "Q-003":{"mainId":"Q-003","consolidateId":"Q-003-C","levelUpId":"Q-003-UP",
+        "consolidatePrompt":"两步法：排水法求体积→求铁块高。",
+        "levelUpPrompt":"铁块换<b>正方体</b>，求棱长！",
+        "visualGuideText":"两步：①排水法求体积 ②÷底面积=高。分清<b>容器</b>和<b>铁块</b>！",
+        "dagUnlock":["正方体排水法求棱长"],
+        "boardConclusion":"①排水法求体积 ②÷铁块底面积=高 ✨"},
+    "Q-004":{"mainId":"Q-004","consolidateId":"Q-004-C","levelUpId":"Q-004-UP",
+        "consolidatePrompt":"这次是<b>追及</b>——同向而行，用速度差！",
+        "levelUpPrompt":"4分钟后乙停下了，甲继续走。分段算！",
+        "visualGuideText":"相遇：路程 ÷ 速度和 = 时间 ✨",
+        "dagUnlock":["EP-079 追及问题"],
+        "boardConclusion":"相遇时间 = 路程 ÷ 速度和 ✨"},
+    "Q-005":{"mainId":"Q-005","consolidateId":"Q-005-C","levelUpId":"Q-005-UP",
+        "consolidatePrompt":"25×4=100！44里有几个4？",
+        "levelUpPrompt":"125×88，88里面藏着8！",
+        "visualGuideText":"简便计算核心：拆数凑整 ✨",
+        "dagUnlock":["EP-032 乘法分配律简便计算"],
+        "boardConclusion":"125×8=1000，拆数凑整 ✨"},
+    "Q-006":{"mainId":"Q-006","consolidateId":"Q-006-C","levelUpId":"Q-006-UP",
+        "consolidatePrompt":"用去⅖，还剩1-⅖=⅗。10×⅗=？",
+        "levelUpPrompt":"「它的¼」和「¼米」一样吗？陷阱题！",
+        "visualGuideText":"求一个数的几分之几 → 乘法 ✨",
+        "dagUnlock":["EP-096 分数除法应用"],
+        "boardConclusion":"「它的¾」→ 用乘法 ✨"}
+}};
+
+// ========================================================
+// 数据层（内置参考数据，无外部依赖）
+// ========================================================
+const DataLayer = {
+    ready: true, kgMap: {}, kgByL3: {}, epMap: {}, epById: {}, ideaDict: {},
+    abilityMap: {"运算能力":{id:1},"空间想象能力":{id:2},"推理能力":{id:4},"抽象能力":{id:5},"分析和解决问题的能力":{id:7}},
+    dimLabels: {
+        D1:{TRANSFORM:"变换",VOLUME_3D:"立体测度",AGGREGATE:"聚合",COMPARE:"比较",DYNAMIC:"动态变化",DYNAMIC_CHANGE:"动态变化",PROPORTIONAL:"比例分率",PERIODIC:"周期",MEASURE:"测度",STATS:"统计",LOGIC:"逻辑",D2_FORWARD:"正向"},
+        D2:{D1_FORWARD:"正向单步",D2_FORWARD:"正向单步",D2_REVERSE:"逆向单步",D3_FORWARD_MULTI:"正向多步",D4_REVERSE_MULTI:"逆向多步"},
+        I:{I0_RAW:"裸题",I1_SHALLOW:"浅层情境",I2_HIDDEN:"隐蔽条件",I3_DYNAMIC:"动态建模",I4_REDUNDANT:"冗余干扰"},
+        C:{C1_SINGLE:"单一考点",C2_INTRA_MODULE:"模块内复合",C3_CROSS_MODULE:"跨模块复合"}
+    },
+    async init(){
+        // 知识图谱（仅含本Demo涉及的L4知识点）
+        const _kg=[
+            {"L1模块":"图形与几何","L2主题":"立体图形的认识与测量","L3核心概念":"表面积计算","L4原子知识点":"长方体的表面积计算","特征":"无","前置依赖节点":"长方形的面积|长方体的特征","默认分册":"五下"},
+            {"L1模块":"图形与几何","L2主题":"立体图形的认识与测量","L3核心概念":"体积计算","L4原子知识点":"长方体的体积计算","特征":"无","前置依赖节点":"三位数乘两位数(一般情况)|体积与容积的概念|长方体的表面积计算","默认分册":"五下"},
+            {"L1模块":"图形与几何","L2主题":"立体图形的认识与测量","L3核心概念":"体积计算","L4原子知识点":"正方体的体积计算","特征":"无","前置依赖节点":"长方体的体积计算","默认分册":"五下"},
+            {"L1模块":"数与代数","L2主题":"运算定律与简便计算","L3核心概念":"乘法运算定律","L4原子知识点":"乘法结合律","特征":"无","前置依赖节点":"乘法交换律","默认分册":"四下"},
+            {"L1模块":"数与代数","L2主题":"运算定律与简便计算","L3核心概念":"乘法运算定律","L4原子知识点":"乘法分配律","特征":"无","前置依赖节点":"乘法结合律","默认分册":"四下"},
+            {"L1模块":"数与代数","L2主题":"分数乘除法","L3核心概念":"分数乘法","L4原子知识点":"分数乘整数","特征":"约分|不约分","前置依赖节点":"分数乘整数的意义(相同分数连加)|约分的方法","默认分册":"六上"},
+            {"L1模块":"数与代数","L2主题":"分数乘除法","L3核心概念":"分数乘法","L4原子知识点":"分数乘分数的意义(求一个数的几分之几)","特征":"意义","前置依赖节点":"分数乘整数的意义(相同分数连加)","默认分册":"六上"},
+            {"L1模块":"数与代数","L2主题":"常见的数量关系","L3核心概念":"行程问题","L4原子知识点":"相遇问题","特征":"同时|不同时","前置依赖节点":"速度×时间=路程","默认分册":"五上"},
+            {"L1模块":"数与代数","L2主题":"常见的数量关系","L3核心概念":"行程问题","L4原子知识点":"追及问题","特征":"同时|不同时","前置依赖节点":"相遇问题","默认分册":"五上"}
+        ];
+        _kg.forEach(r=>{const l4=r['L4原子知识点'];this.kgMap[l4]=r;const l3=r['L3核心概念'];if(!this.kgByL3[l3])this.kgByL3[l3]=[];this.kgByL3[l3].push(r);});
+        // 数学思想字典（仅含本Demo引用的ID）
+        this.ideaDict={
+            "ID-101":{name:"量率对应",group:"对应思想",cross:"具体数量与抽象分率/百分率的对应"},
+            "ID-102":{name:"点段对应",group:"对应思想",cross:"离散的点与连续的段之间的对应"},
+            "ID-201":{name:"形体转化",group:"转化思想",cross:"图形的割补、平移、旋转，立体图形的等积变形"},
+            "ID-302":{name:"线性重叠",group:"容斥与重叠",cross:"一维空间上的线段重叠"},
+            "ID-401":{name:"图解算理",group:"数形结合",cross:"用图形直观解释抽象运算"},
+            "ID-501":{name:"等量代换",group:"代换与方程",cross:"基于等式的直接替换"},
+            "ID-601":{name:"无限细分",group:"极限与逼近",cross:"化曲为直的面积/体积推导"}
+        };
+        console.log(`DataLayer: ${Object.keys(this.kgMap).length} L4, ${Object.keys(this.ideaDict).length} 思想`);
+    },
+    getKnowledgeContext(l4Name){const row=this.kgMap[l4Name];if(!row)return null;const l1=(row['L1模块']||row['L1']||'').trim(),l2=(row['L2主题']||row['L2']||'').trim(),l3=(row['L3核心概念']||row['L3']||'').trim(),feature=(row['特征']||'').trim();const preDeps=(row['前置依赖节点']||'').split(/[|｜,，]/).map(s=>s.trim()).filter(Boolean);const postDeps=[];Object.values(this.kgMap).forEach(r=>{if((r['前置依赖节点']||'').split(/[|｜,，]/).map(s=>s.trim()).includes(l4Name))postDeps.push((r['L4原子知识点']||r['L4']||'').trim());});const siblings=(this.kgByL3[l3]||[]).map(r=>(r['L4原子知识点']||r['L4']||'').trim()).filter(n=>n!==l4Name);return{l1,l2,l3,l4:l4Name,feature,preDeps,postDeps,siblings};},
+    getIdeaInfo(s){const m=s.match(/ID-\d+/);return m?this.ideaDict[m[0]]:null;},
+    describeFourDim(fd){if(!fd)return[];return[fd.D1?`D1:${this.dimLabels.D1[fd.D1]||fd.D1}`:null,fd.D2?`D2:${this.dimLabels.D2[fd.D2]||fd.D2}`:null,fd.I?`I:${this.dimLabels.I[fd.I]||fd.I}`:null,fd.C?`C:${this.dimLabels.C[fd.C]||fd.C}`:null].filter(Boolean);},
+    assessAbilities(q,mastery){const a={};a["运算能力"]=mastery.knowledge>=.7?.8:mastery.knowledge>=.4?.5:.2;if(q.knowledge&&(q.knowledge.L1||'').includes('几何'))a["空间想象能力"]=mastery.pattern>=.6?.7:.3;if((q.fourDim?.D2||'').match(/MULTI|REVERSE/))a["推理能力"]=mastery.pattern>=.6?.75:mastery.pattern>=.3?.4:.15;if((q.fourDim?.I||'').match(/I[234]/))a["抽象能力"]=mastery.pattern>=.6?.7:.3;a["分析和解决问题的能力"]=(mastery.knowledge+mastery.pattern)/2;return a;}
+};
+
+// ========================================================
+// 题库加载
+// ========================================================
+let QUESTION_BANK={},DIAGNOSIS_FLOWS={},MAIN_QUESTIONS=[],TOPIC_INFO={};
+function loadQuestions(){const d=(typeof _QDATA!=='undefined')?_QDATA:window._QDATA;if(d){QUESTION_BANK=d.QUESTION_BANK||{};DIAGNOSIS_FLOWS=d.DIAGNOSIS_FLOWS||{};MAIN_QUESTIONS=d.MAIN_QUESTIONS||[];TOPIC_INFO=d.TOPIC_INFO||{};console.log(`题库: ${Object.keys(QUESTION_BANK).length} 道`);return true;}return false;}
+
+// ========================================================
+// UI（V2：增加梯子进度条、逐步板书、验证题组件）
+// ========================================================
+const UI={
+    questionZone:null,boardZone:null,chatZone:null,inputBar:null,answerInput:null,submitBtn:null,
+    init(){this.questionZone=document.getElementById('questionZone');this.boardZone=document.getElementById('boardZone');this.chatZone=document.getElementById('chatZone');this.inputBar=document.getElementById('inputBar');this.answerInput=document.getElementById('answerInput');this.submitBtn=document.getElementById('submitBtn');this.slideEl=document.getElementById('coursewareSlide');},
+    scrollChat(){setTimeout(()=>this.chatZone.scrollTo({top:this.chatZone.scrollHeight,behavior:'smooth'}),100);},
+
+    // === 题干区 ===
+    setQuestion(q,label){
+        this.questionZone.innerHTML='';
+        if(this.slideEl)this.slideEl.style.display='';
+        const div=document.createElement('div');div.className='question-card';
+        const gradeLabel=q.grade||'五年级';
+        const titleName=q.title||'数学练习';
+        div.innerHTML=`<div class="question-header"><div class="qh-icon">📐</div><div class="qh-title">${titleName}</div><div class="qh-badge">${gradeLabel}</div></div>`;
+        const textEl=document.createElement('div');textEl.className='question-text';
+        div.appendChild(textEl);
+        this.questionZone.appendChild(div);
+        this._animateText(textEl,q.text);
+    },
+    _animateText(el,html){const parts=[];let i=0;while(i<html.length){if(html[i]==='<'){const end=html.indexOf('>',i);if(end>i){parts.push({type:'tag',val:html.slice(i,end+1)});i=end+1;}else{parts.push({type:'char',val:html[i]});i++;}}else{parts.push({type:'char',val:html[i]});i++;}}let buf='',ci=0;const step=()=>{if(ci>=parts.length){el.innerHTML=html;return;}const p=parts[ci];ci++;if(p.type==='tag'){buf+=p.val;el.innerHTML=buf;step();}else{buf+=p.val;el.innerHTML=buf;setTimeout(step,25);}};step();},
+    clearQuestion(){this.questionZone.innerHTML='';if(this.slideEl)this.slideEl.style.display='none';},
+
+    // === 板书区（V2：支持逐步亮出）===
+    _boardVisualHtml:null, _boardHintText:null, _boardTitle:null, _boardSteps:[], _boardConclusion:null,
+    initBoard(title){
+        this._boardTitle=title;this._boardSteps=[];this._boardConclusion=null;
+        this._renderBoard();
+    },
+    addBoardStep(stepHtml){
+        this._boardSteps.push(stepHtml);
+        this._renderBoard();
+    },
+    setBoardConclusion(text){
+        this._boardConclusion=text;
+        this._renderBoard();
+    },
+    _renderBoard(){
+        this.boardZone.innerHTML='';
+        if(!this._boardTitle)return;
+        let rightHtml=this._boardSteps.map((s,i)=>`<div class="board-step" style="animation-delay:${i*.3}s">${s}</div>`).join('');
+        if(this._boardConclusion)rightHtml+=`<div class="board-divider"></div><div class="board-conclusion" style="animation-delay:${this._boardSteps.length*.3}s">${this._boardConclusion}</div>`;
+        let leftHtml='';
+        if(this._boardVisualHtml)leftHtml+=this._boardVisualHtml;
+        if(this._boardHintText)leftHtml+=`<div class="key-hint">${this._boardHintText}</div>`;
+        if(!leftHtml)leftHtml='<div style="color:var(--text-muted);font-size:.8rem;text-align:center">📐 上课区</div>';
+        this.boardZone.innerHTML=`<div class="board-header">📝 板书 — ${this._boardTitle}</div><div class="board-split"><div class="board-left">${leftHtml}</div><div class="board-right">${rightHtml}</div></div>`;
+        if(this._boardVisualHtml){setTimeout(()=>{const s=document.getElementById('animStone');if(s){s.classList.add('dropped');setTimeout(()=>{const w=document.getElementById('animWater');if(w){w.classList.add('raised');const lr=document.getElementById('labelRaised');if(lr)lr.classList.add('show');setTimeout(()=>{const ld=document.getElementById('labelDelta');if(ld)ld.classList.add('show');},500);}},600);}},800);}
+    },
+    // 兼容旧接口
+    setBoard(title,steps,conclusion){this._boardTitle=title;this._boardSteps=[...steps];this._boardConclusion=conclusion;this._renderBoard();},
+    showTankVisual(labels){const lb=labels||{before:"水面",after:"上升后",delta:"Δh"};this._boardVisualHtml=`<div class="visual-wrap"><div style="position:relative"><div class="tank"><div class="water" id="animWater" style="height:48px"><div class="stone" id="animStone"></div></div><div class="m-label l1">${lb.before}</div><div class="m-label l2" id="labelRaised">${lb.after}</div><div class="delta-label" id="labelDelta">↕ ${lb.delta}</div></div></div></div>`;},
+    showCuboidVisual(v){const l=v?.length||5,w=v?.width||3,h=v?.height||4;this._boardVisualHtml=`<div><div class="cuboid-scene"><div class="cuboid-3d"><div class="c-face c-front">前面<br>${l}×${h}=${l*h}</div><div class="c-face c-right">右面<br>${w}×${h}=${w*h}</div><div class="c-face c-top">上面<br>${l}×${w}=${l*w}</div></div></div><div class="cuboid-dims"><span class="dim-l">长${l}cm</span><span class="dim-w">宽${w}cm</span><span class="dim-h">高${h}cm</span></div></div>`;},
+    setBoardHint(text){this._boardHintText=text;},
+    clearBoard(){this.boardZone.innerHTML='';this._boardVisualHtml=null;this._boardHintText=null;this._boardTitle=null;this._boardSteps=[];this._boardConclusion=null;},
+
+    // === 误解纠正卡片 ===
+    showMisconception(mc){
+        const div=document.createElement('div');div.className='misconception-card';
+        div.innerHTML=`<div class="mc-header">💡 我理解你的想法</div><div class="mc-body">${mc.response}<div class="mc-type">${mc.type}</div></div>`;
+        this._sec().appendChild(div);this.scrollChat();
+    },
+
+    // === 讲解梯子进度条 ===
+    showLadderProgress(ladder, currentIdx, stepStates){
+        // stepStates: array of 'pending'|'active'|'done'|'fail'|'skip'
+        let html='';
+        ladder.forEach((s,i)=>{
+            const st=stepStates[i]||'pending';
+            html+=`<div class="ladder-node"><div class="ladder-dot ${st}">${i+1}<span class="ladder-label">${s.name}</span></div></div>`;
+            if(i<ladder.length-1)html+=`<div class="ladder-line ${stepStates[i]==='done'?'done':''}"></div>`;
+        });
+        // 查找或创建
+        let el=this.chatZone.querySelector('.ladder-progress');
+        if(!el){el=document.createElement('div');el.className='ladder-progress';this.chatZone.appendChild(el);}
+        el.innerHTML=html;
+        this.scrollChat();
+    },
+    removeLadderProgress(){const el=this.chatZone.querySelector('.ladder-progress');if(el)el.remove();},
+
+    // === 错因定位面板 ===
+    showErrorLocate(errorType, failDim, targetStepName){
+        const dimNames={D2:'思维路径',D3:'信息隐蔽度',D4:'考点复合度'};
+        const div=document.createElement('div');div.className='error-locate';
+        div.innerHTML=`<div class="el-title">🎯 错因定位</div><div style="font-size:.8rem;color:var(--text-sub);margin:4px 0">${errorType}</div><div><span class="el-dim">失败维度: ${dimNames[failDim]||failDim}</span><span class="el-arrow">→</span><span class="el-dim">从「${targetStepName}」开始讲解</span></div>`;
+        this.chatZone.appendChild(div);this.scrollChat();
+    },
+
+    // === 对话区（不变） ===
+    addMsg(role,text,extraClass){const div=document.createElement('div');div.className=`msg-row msg-${role}`;const av=role==='ai'?'🤖':'👦🏻',nm=role==='ai'?'AI 小白':'我';div.innerHTML=`${role==='ai'?`<div class="avatar">${av}</div>`:''}<div class="bubble-wrap"><div class="sender">${nm}</div><div class="bubble ${extraClass||''}">${text}</div></div>${role==='stu'?`<div class="avatar">${av}</div>`:''}`;this._sec().appendChild(div);this.scrollChat();},
+    _sec(){let s=this.chatZone.querySelector('.chat-section:last-of-type');if(!s){s=document.createElement('div');s.className='chat-section';this.chatZone.appendChild(s);}return s;},
+    newSection(){const s=document.createElement('div');s.className='chat-section';this.chatZone.appendChild(s);return s;},
+    addDiagPanel(title,desc,tags){const div=document.createElement('div');div.className='diag-panel';div.innerHTML=`<div class="diag-title">🔍 ${title}</div><div class="diag-body">${desc}</div>${tags?'<div style="margin-top:6px">'+tags.map(t=>`<span class="diag-tag">${t}</span>`).join('')+'</div>':''}`;this.chatZone.appendChild(div);this.scrollChat();},
+    showOptions(opts,cb){this.inputBar.classList.add('hidden');const div=document.createElement('div');div.className='options-group';opts.forEach(o=>{const btn=document.createElement('button');btn.className='opt-btn';btn.textContent=o.label;btn.onclick=()=>{div.querySelectorAll('.opt-btn').forEach(b=>b.disabled=true);btn.classList.add('selected');setTimeout(()=>cb(o.value),300);};div.appendChild(btn);});this.chatZone.appendChild(div);this.scrollChat();},
+    showInputBar(ph){this.inputBar.classList.remove('hidden');this.answerInput.value='';this.answerInput.placeholder=ph||'说出你的想法...';this.answerInput.disabled=false;this.submitBtn.disabled=false;this.answerInput.focus();},
+    hideInputBar(){this.inputBar.classList.add('hidden');},
+    showResult(grade,rows){const div=document.createElement('div');div.className='result-card';const cls=grade==='pass'?'pass':grade==='retry'?'retry':'fail';const title=grade==='pass'?'🎉 掌握!':grade==='retry'?'💪 加油':'📖 需巩固';div.innerHTML=`<div class="result-header ${cls}">${title}</div><div class="result-body">${rows.map(r=>`<div class="result-row"><span class="result-label">${r[0]}</span><span class="result-value">${r[1]}</span></div>`).join('')}</div>`;this.chatZone.appendChild(div);this.scrollChat();},
+    showNextBtn(text,cb,accent){const btn=document.createElement('button');btn.className=`next-btn ${accent?'accent':''}`;btn.textContent=text;btn.onclick=()=>{btn.remove();cb();};this.chatZone.appendChild(btn);this.scrollChat();},
+    showAbilityCard(abilities){const div=document.createElement('div');div.style.cssText='padding:0 14px 10px';let bars='';Object.entries(abilities).forEach(([n,v])=>{const p=Math.round(v*100),lv=p>=70?'lv3':p>=40?'lv2':'lv1';bars+=`<div class="ability-bar"><span class="ab-name">${n.replace('能力','')}</span><div class="ab-track"><div class="ab-fill ${lv}" style="width:${p}%"></div></div><span style="font-size:.65rem;color:var(--text-muted);width:30px">${p}%</span></div>`;});div.innerHTML=`<div style="font-size:.8rem;color:var(--text-sub);margin:8px 0 6px;font-weight:600">🎯 能力评估</div>${bars}`;this.chatZone.appendChild(div);this.scrollChat();},
+    showRecommendations(pPct,dagUnlock){const div=document.createElement('div');div.style.padding='0 14px 20px';div.innerHTML='<div style="font-size:.8rem;color:var(--text-sub);margin:14px 0 8px;font-weight:600">📚 推荐下一步</div>';if(pPct>=70)div.innerHTML+=(dagUnlock||[]).map(t=>`<div class="kp-tag unlock">${t}</div>`).join('')+'<div style="font-size:.8rem;color:var(--text-sub);margin-top:8px">已掌握，可挑战更复杂变式！</div>';else if(pPct>=40)div.innerHTML+='<div class="kp-tag">再练变式</div>';else div.innerHTML+='<div class="kp-tag" style="border-color:#fecaca;background:#fef2f2;color:var(--danger)">基础复习</div>';this.chatZone.appendChild(div);},
+    updateProgress(step){document.querySelectorAll('.dot').forEach((d,i)=>{d.className='dot'+(i<step?' done':i===step?' active':'');});},
+    showTopicSelector(){
+        this.clearQuestion();this.clearBoard();this.chatZone.innerHTML='';
+        this.renderStageBar(null);
+        const h=document.createElement('div');h.style.cssText='padding:16px 14px 8px;font-size:.85rem;font-weight:700;color:var(--text)';h.textContent='📋 选择练习题目';this.chatZone.appendChild(h);
+        const desc=document.createElement('div');desc.style.cssText='padding:0 14px 8px;font-size:.8rem;color:var(--text-sub)';desc.textContent='五年级数学 · 点击关卡开始练习';this.chatZone.appendChild(desc);
+        MAIN_QUESTIONS.forEach(qId=>{const info=TOPIC_INFO[qId];if(!info)return;const card=document.createElement('div');card.className='topic-card';card.innerHTML=`<span class="tc-diff ${info.diff}">${info.diffLabel}</span><div class="tc-title">${info.icon||'📐'} ${info.name}</div><div class="tc-desc">${info.desc}</div>`;card.onclick=()=>Engine.selectTopic(qId);this.chatZone.appendChild(card);});
+    },
+    // === 关卡进度条 ===
+    _stageCompleted:{},
+    renderStageBar(activeId){
+        const bar=document.getElementById('stageBar');if(!bar)return;
+        let html='';
+        const completed=this._stageCompleted;
+        const doneCount=Object.keys(completed).length;
+        const total=MAIN_QUESTIONS.length;
+        MAIN_QUESTIONS.forEach((qId,i)=>{
+            const info=TOPIC_INFO[qId];if(!info)return;
+            const isDone=!!completed[qId];
+            const isActive=qId===activeId;
+            const cls=isActive?'active':isDone?'done':'';
+            html+=`<div class="stage-item">`;
+            html+=`<button class="stage-btn ${cls}" onclick="Engine.selectTopic('${qId}')" title="${info.desc}">`;
+            html+=`<span class="stage-icon">${info.icon||'📋'}</span>`;
+            html+=`<span>${info.name}</span>`;
+            if(isDone)html+=`<span class="stage-check"> ✓</span>`;
+            html+=`</button></div>`;
+            if(i<MAIN_QUESTIONS.length-1)html+=`<div class="stage-connector ${isDone?'done':''}"></div>`;
+        });
+        html+=`<div class="stage-lesson-progress"><span class="slp-label">${doneCount}/${total}</span><div class="slp-bar"><div class="slp-fill" style="width:${total?Math.round(doneCount/total*100):0}%"></div></div></div>`;
+        bar.innerHTML=html;
+    },
+    markStageComplete(qId){this._stageCompleted[qId]=true;},
+    clearAll(){this.clearQuestion();this.clearBoard();this.chatZone.innerHTML='';this.hideInputBar();}
+};
+
+// ========================================================
+// 左侧监控台（V2：增加错因驱动决策展示）
+// ========================================================
+const Backend={
+    updateJSON(obj){const el=document.getElementById('jsonView');if(!el)return;const s=JSON.stringify(obj,null,2);el.innerHTML=s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"([^"]+)":/g,'<span class="json-key">"$1"</span>:').replace(/: "([^"]*)"/g,': <span class="json-string">"$1"</span>').replace(/: (\d+\.?\d*)/g,': <span class="json-number">$1</span>').replace(/: (true|false)/g,': <span class="json-boolean">$1</span>').replace(/: null/g,': <span class="json-null">null</span>').replace(/\n/g,'<br>').replace(/  /g,'&nbsp;&nbsp;');},
+    updateTags(tags){if(tags.phase){const t=document.getElementById('tagPhase');t.textContent=`Phase: ${tags.phase}`;this._pulse(t);}if(tags.solo){const t=document.getElementById('tagSolo');t.textContent=tags.solo;this._pulse(t);}if(tags.triple){const t=document.getElementById('tagTriple');t.textContent=tags.triple;this._pulse(t);}},
+    updateStrategy(title,desc){document.getElementById('strategyTitle').textContent=title;document.getElementById('strategyDesc').textContent=desc;const c=document.getElementById('strategyCard');c.classList.remove('updated');void c.offsetWidth;c.classList.add('updated');},
+    addTimeline(type,text){const tl=document.getElementById('timeline');const item=document.createElement('div');item.className='tl-item';item.innerHTML=`<div class="tl-dot ${type}"></div><div class="tl-text">${text}</div>`;tl.appendChild(item);tl.scrollTop=tl.scrollHeight;},
+    updateKG(q){const sec=document.getElementById('kgSection');if(!DataLayer.ready||!q.knowledge?.L4){sec.style.display='none';return;}const ctx=DataLayer.getKnowledgeContext(q.knowledge.L4);if(!ctx){sec.style.display='none';return;}sec.style.display='';document.getElementById('kgBreadcrumb').innerHTML=[ctx.l1?`<span class="kg-crumb l1">${ctx.l1}</span><span class="kg-arrow">›</span>`:'',ctx.l2?`<span class="kg-crumb l2">${ctx.l2}</span><span class="kg-arrow">›</span>`:'',ctx.l3?`<span class="kg-crumb l3">${ctx.l3}</span><span class="kg-arrow">›</span>`:'',`<span class="kg-crumb l4">${ctx.l4}</span>`].join('');let html='';if(ctx.preDeps.length)html+=`<div class="kg-dep-label">⬆ 前置</div><div class="kg-dep-list">${ctx.preDeps.map(d=>`<span class="kg-dep-tag pre">${d}</span>`).join('')}</div>`;if(ctx.postDeps.length)html+=`<div class="kg-dep-label" style="margin-top:4px">⬇ 后继</div><div class="kg-dep-list">${ctx.postDeps.slice(0,5).map(d=>`<span class="kg-dep-tag post">${d}</span>`).join('')}</div>`;document.getElementById('kgDeps').innerHTML=html;},
+    updateIdeas(ideas){const sec=document.getElementById('ideaSection');if(!ideas?.length){sec.style.display='none';return;}sec.style.display='';document.getElementById('ideaChips').innerHTML=ideas.map(i=>{const info=DataLayer.getIdeaInfo(i);return info?`<span class="idea-chip"><span class="idea-id">${i.match(/ID-\d+/)?.[0]||''}</span>${info.name}</span>`:`<span class="idea-chip">${i}</span>`;}).join('');const ct=ideas.map(i=>{const info=DataLayer.getIdeaInfo(i);return info?`${info.name}：${info.cross}`:null;}).filter(Boolean);document.getElementById('ideaCross').innerHTML=ct.length?ct.join('<br>'):'';},
+    _pulse(el){el.classList.remove('updated');void el.offsetWidth;el.classList.add('updated');}
+};
+
+// ========================================================
+// V2 诊断引擎：错因驱动 + 讲解梯子
+// ========================================================
+const Engine={
+    state:{phase:'main',flowId:null,currentQ:null,ladderIdx:0,ladderStartIdx:0,ladderStates:[],ladderRetries:0,mainCorrect:false,errorPattern:null,mastery:{knowledge:.3,pattern:0},totalQuestions:0,correctCount:0},
+    delay(ms){return new Promise(r=>setTimeout(r,ms));},
+
+    selectTopic(flowId){
+        this.state={phase:'main',flowId,currentQ:null,ladderIdx:0,ladderStartIdx:0,ladderStates:[],ladderRetries:0,mainCorrect:false,errorPattern:null,mastery:{knowledge:.3,pattern:0},totalQuestions:0,correctCount:0};
+        document.getElementById('timeline').innerHTML='<h3>📋 诊断时间线</h3>';
+        const mq=QUESTION_BANK[flowId];
+        UI.renderStageBar(flowId);
+        Backend.updateJSON({Status:"等待作答...",Knowledge:mq.knowledge||{},FourDim:DataLayer.describeFourDim(mq.fourDim)});
+        Backend.updateStrategy("💡 静默观测",`考法 ${mq.pattern||''}。思想 ${(mq.ideas||[]).join('+')}`);
+        Backend.updateKG(mq);Backend.updateIdeas(mq.ideas);
+        this.startMain(flowId);
+    },
+
+    async startMain(flowId){
+        const flow=DIAGNOSIS_FLOWS[flowId],q=QUESTION_BANK[flow.mainId],s=this.state;
+        s.phase='main';s.currentQ=q;
+        UI.updateProgress(0);UI.setQuestion(q,'📐 真题挑战');UI.clearBoard();UI.chatZone.innerHTML='';UI.newSection();
+        Backend.addTimeline('wait','<b>开始</b>');
+        await this.delay(600);UI.addMsg('ai','同学你好！我是 AI 小白 🐬 仔细读题，算出答案告诉我~');
+        UI.showInputBar(`答案？（${q.unit}）`);
+    },
+
+    parseAnswer(raw){const n=raw.match(/-?\d+\.?\d*/g);return n?parseFloat(n[n.length-1]):NaN;},
+
+    // ★ misconception 检测：扫描当前步骤的误解触发词
+    _checkMisconception(step, raw){
+        if(!step.misconceptions?.length)return null;
+        const t=raw.replace(/\s/g,'').toLowerCase();
+        for(const mc of step.misconceptions){
+            if((mc.trigger||[]).some(k=>t.includes(k.toLowerCase()))){
+                return mc;
+            }
+        }
+        return null;
+    },
+
+    handleSubmit(){
+        const raw=UI.answerInput.value.trim();if(!raw)return;
+        UI.answerInput.disabled=true;UI.submitBtn.disabled=true;
+        UI.addMsg('stu',raw);UI.hideInputBar();
+        const s=this.state;
+        // 梯子中的提交
+        if(s.phase==='ladder'){this.processLadderInput(raw);return;}
+        const val=this.parseAnswer(raw);
+        s.totalQuestions++;
+        if(isNaN(val)){this.handleFreeText(raw);return;}
+        switch(s.phase){
+            case'main':this.processMain(val);break;
+            case'consolidate':this.processConsolidate(val);break;
+            case'levelUp':this.processLevelUp(val);break;
+        }
+    },
+
+    classifyIntent(text){const t=text.replace(/\s/g,'');if(/不会|不知道|不懂|帮我|提示|看不懂|没思路|怎么做|怎么算/.test(t))return'need_help';if(/为什么|为啥|原理|什么意思/.test(t))return'ask_why';if(/算什么|求什么|做什么|干什么|这是/.test(t))return'confused_what';if(/^(好|ok|嗯|对|是的|明白了|懂了|好的)$/i.test(t))return'acknowledge';if(/^(不|没|不是|不对)$/i.test(t))return'deny';if(/是不是|应该是|我觉得|我猜/.test(t))return'guess';if(/先|然后|乘|除|×|÷|=/.test(t))return'show_work';return'unknown';},
+
+    async handleFreeText(text){
+        await this.delay(400);const intent=this.classifyIntent(text);
+        Backend.addTimeline('info',`<b>意图</b>: ${intent}`);
+        const s=this.state;
+        // 如果在main阶段说"不会"，直接进入梯子讲解（从头开始）
+        if(s.phase==='main'&&(intent==='need_help'||intent==='confused_what')){
+            s.totalQuestions++;
+            UI.addMsg('ai','没关系！我来一步步带你 💡');
+            s.errorPattern={type:"主动求助",diagTags:["主动求助"]};
+            Backend.addTimeline('info','<b>主动求助</b> → 从S1开始讲解梯子');
+            await this.delay(600);
+            this.startLadder(0);
+            return;
+        }
+        switch(intent){
+            case'need_help':UI.addMsg('ai','没关系！一步步来 💡');await this.delay(400);UI.showInputBar('你来试试...');break;
+            case'ask_why':UI.addMsg('ai','想深入理解，赞！✨');await this.delay(600);{const ideas=(this.state.flowId?QUESTION_BANK[DIAGNOSIS_FLOWS[this.state.flowId].mainId]:this.state.currentQ).ideas||[];if(ideas.length){const txt=ideas.map(i=>{const info=DataLayer.getIdeaInfo(i);return info?`<b>${info.name}</b>（${info.cross}）`:i;}).join('<br>');await this.delay(600);UI.addMsg('ai',`数学思想：<br>${txt}`,'hint');}}await this.delay(800);UI.addMsg('ai','理解了就算一下？');await this.delay(400);UI.showInputBar('算~');break;
+            case'acknowledge':UI.addMsg('ai','好！算出答案告诉我~');await this.delay(400);UI.showInputBar('答案...');break;
+            case'guess':UI.addMsg('ai','<b>猜</b>不如<b>算</b>~ 代入公式！','hint');await this.delay(400);UI.showInputBar('具体数字...');break;
+            case'show_work':UI.addMsg('ai','思路对 👍 最终数字告诉我~');await this.delay(400);UI.showInputBar('最终答案...');break;
+            default:UI.addMsg('ai','需要帮忙还是自己算？','hint');UI.showOptions([{label:'📝 帮我讲',value:'teach'},{label:'🧮 我自己算',value:'calc'}],c=>{if(c==='teach'){if(s.phase==='main'){s.errorPattern={type:"主动求助",diagTags:["主动求助"]};this.startLadder(0);}else UI.showInputBar('试试~');}else UI.showInputBar('你来...');});break;
+        }
+    },
+
+    // ★★★ V2 核心：processMain → 错因驱动 → 梯子讲解 ★★★
+    async processMain(val){
+        const s=this.state,q=s.currentQ,flow=DIAGNOSIS_FLOWS[s.flowId];
+        UI.updateProgress(1);
+
+        if(val===q.answer){
+            // 答对
+            s.mainCorrect=true;s.correctCount++;s.mastery.knowledge=.85;s.mastery.pattern=.7;
+            Backend.addTimeline('pass',`<b>正确</b> ${val}${q.unit} ✓`);
+            Backend.updateTags({phase:"✅ 通过",solo:"SOLO: EXTENDED ✓"});
+            Backend.updateStrategy("💡 升维","一次通过");
+            await this.delay(500);UI.addMsg('ai',q.correctFeedback||'🎉 正确！','success');
+            // 展示完整板书
+            await this.delay(600);
+            if(q.teachingLadder){
+                if(q.visual?.type==='cuboid')UI.showCuboidVisual(q.visual);
+                else if(q.visual?.type==='tank')UI.showTankVisual(q.visual.labels);
+                UI.initBoard(q.title);
+                q.teachingLadder.forEach(s=>UI.addBoardStep(s.boardStep));
+                UI.setBoardConclusion(flow.boardConclusion);
+            }
+            await this.delay(800);UI.addDiagPanel('结论','核心知识点已掌握。',q.correctDiagTags||[]);
+            if(flow.levelUpId){
+                await this.delay(600);UI.addMsg('ai','挑战升维题？💪');
+                UI.showOptions([{label:'🚀 升维！',value:'levelUp'},{label:'✅ 看结果',value:'done'},{label:'🔄 换题',value:'back'}],c=>{if(c==='levelUp')this.startLevelUp();else if(c==='back')this.goBack();else this.showFinalResult();});
+            }else this.showFinalResult();
+        }else{
+            // ★ 答错：错因驱动诊断 ★
+            s.mainCorrect=false;
+            const ep=(q.errorPatterns||{})[val];
+            s.errorPattern=ep||{type:"计算偏差",failDim:null,targetStep:0,diagTags:[]};
+            const epType=s.errorPattern.type;
+            const failDim=s.errorPattern.failDim;
+            const targetStep=s.errorPattern.targetStep||0;
+
+            Backend.addTimeline('fail',`<b>错误</b> ${val}，${epType}`);
+            Backend.updateTags({phase:"❌ 错因定位"});
+
+            // 更新监控台JSON：展示错因驱动决策
+            Backend.updateJSON({
+                StudentAnswer:val,CorrectAnswer:q.answer,
+                ErrorPattern:epType,FailDim:failDim||"未匹配",
+                TargetStep:targetStep,
+                Strategy:ep?"错因驱动→精准定位":"默认→从S1开始",
+                Ladder:q.teachingLadder?.map(s=>s.name)||[]
+            });
+
+            await this.delay(500);
+            if(ep?.feedback){
+                UI.addMsg('ai',ep.feedback,'error-hint');
+            }else{
+                UI.addMsg('ai',`<b>${val}</b> ${q.defaultFeedback||'不太对。'}`,'error-hint');
+            }
+
+            await this.delay(800);
+
+            // 展示错因定位面板
+            if(ep&&failDim){
+                const ladder=q.teachingLadder||[];
+                const stepName=ladder[targetStep]?.name||`步骤${targetStep+1}`;
+                UI.showErrorLocate(epType,failDim,stepName);
+                Backend.addTimeline('info',`<b>定位</b> failDim=${failDim} → 从「${stepName}」开始`);
+                Backend.updateStrategy("🎯 错因驱动",`${epType} → ${failDim} → ${stepName}`);
+            }else{
+                Backend.addTimeline('info','<b>未匹配errorPattern</b> → 从S1开始');
+                Backend.updateStrategy("🔍 全链路引导","无精确匹配，从头引导");
+            }
+
+            await this.delay(800);
+            // 视觉引导（如果有）
+            if(q.visual?.type==='tank'){
+                UI.showTankVisual(q.visual.labels);
+                const flow2=DIAGNOSIS_FLOWS[s.flowId];
+                if(flow2.visualGuideText)UI.setBoardHint(flow2.visualGuideText);
+            }else if(q.visual?.type==='cuboid'){
+                UI.showCuboidVisual(q.visual);
+                const flow2=DIAGNOSIS_FLOWS[s.flowId];
+                if(flow2.visualGuideText)UI.setBoardHint(flow2.visualGuideText);
+            }
+
+            UI.showNextBtn('📝 一步步来',()=>this.startLadder(ep?targetStep:0));
+        }
+    },
+
+    // ★★★ 讲解梯子引擎 ★★★
+    async startLadder(startIdx, overrideQ){
+        const s=this.state, q=overrideQ||QUESTION_BANK[DIAGNOSIS_FLOWS[s.flowId].mainId];
+        s._ladderQ=q; // 记住当前梯子对应的题目
+        const ladder=q.teachingLadder;
+        if(!ladder||!ladder.length){this.showFinalResult();return;}
+
+        s.phase='ladder';
+        s.ladderStartIdx=startIdx;
+        s.ladderIdx=startIdx;
+        s.ladderRetries=0;
+        s.ladderStates=ladder.map((_,i)=>i<startIdx?'skip':'pending');
+        s.ladderStates[startIdx]='active';
+
+        UI.updateProgress(2);
+        Backend.updateTags({phase:`🪜 讲解 ${startIdx+1}/${ladder.length}`});
+
+        // 初始化板书（空，逐步填）
+        UI.initBoard(q.title);
+        // 把跳过的步骤快速亮出
+        for(let i=0;i<startIdx;i++){
+            UI.addBoardStep(ladder[i].boardStep);
+        }
+
+        UI.showLadderProgress(ladder,startIdx,s.ladderStates);
+        await this.delay(500);
+        this.askLadderStep();
+    },
+
+    async askLadderStep(){
+        const s=this.state, q=s._ladderQ||QUESTION_BANK[DIAGNOSIS_FLOWS[s.flowId].mainId];
+        const ladder=q.teachingLadder;
+        const step=ladder[s.ladderIdx];
+        if(!step){this.finishLadder();return;}
+
+        Backend.addTimeline('info',`<b>梯子 ${s.ladderIdx+1}</b> ${step.name}`);
+        Backend.updateTags({phase:`🪜 ${step.name} (${s.ladderIdx+1}/${ladder.length})`});
+        Backend.updateStrategy(`🪜 步骤 ${s.ladderIdx+1}: ${step.name}`,`验证维度: ${step.dim}`);
+
+        await this.delay(400);
+        UI.addMsg('ai',step.aiAsk);
+
+        // 根据验证方式决定输入方式
+        if(step.verify==='number'){
+            UI.showInputBar('算一算...');
+        }else{
+            // 关键词匹配模式，使用输入框
+            UI.showInputBar('说出你的想法...');
+        }
+    },
+
+    async processLadderInput(raw){
+        const s=this.state, q=s._ladderQ||QUESTION_BANK[DIAGNOSIS_FLOWS[s.flowId].mainId];
+        const ladder=q.teachingLadder;
+        const step=ladder[s.ladderIdx];
+        if(!step)return;
+
+        let correct=false;
+        if(step.verify==='number'){
+            const val=this.parseAnswer(raw);
+            correct=(!isNaN(val)&&val===step.verifyAnswer);
+        }else if(step.verify==='input'){
+            // 精确匹配多种接受格式
+            const normalized=raw.replace(/\s+/g,'').toLowerCase();
+            correct=(step.verifyAccept||[]).some(a=>normalized.includes(a.replace(/\s+/g,'').toLowerCase()));
+            if(!correct&&step.verifyAnswer){
+                correct=normalized.includes(String(step.verifyAnswer).replace(/\s+/g,'').toLowerCase());
+            }
+        }else{
+            // 关键词匹配
+            const t=raw.replace(/\s/g,'').toLowerCase();
+            correct=(step.acceptKeywords||[]).some(k=>t.includes(k.toLowerCase()));
+        }
+
+        if(correct){
+            // ✅ 这一步通过
+            s.ladderStates[s.ladderIdx]='done';
+            UI.showLadderProgress(ladder,s.ladderIdx,s.ladderStates);
+            Backend.addTimeline('pass',`<b>${step.name} ✓</b>`);
+            s.mastery.knowledge=Math.min(s.mastery.knowledge+.15,.85);
+
+            await this.delay(300);
+            UI.addMsg('ai',step.correctResponse,'success');
+            // 板书亮出这一步
+            UI.addBoardStep(step.boardStep);
+            if(step.boardHint)UI.setBoardHint(step.boardHint);
+
+            s.ladderRetries=0;
+            s.ladderIdx++;
+
+            if(s.ladderIdx>=ladder.length){
+                await this.delay(600);this.finishLadder();
+            }else{
+                s.ladderStates[s.ladderIdx]='active';
+                UI.showLadderProgress(ladder,s.ladderIdx,s.ladderStates);
+                await this.delay(500);this.askLadderStep();
+            }
+        }else{
+            // ★ 先检查是否命中misconception（不计入错误次数）
+            const mc=this._checkMisconception(step, raw);
+            if(mc){
+                Backend.addTimeline('info',`<b>💡 误解识别</b> ${mc.type}`);
+                Backend.updateStrategy("💡 误解纠正",mc.type);
+                await this.delay(300);
+                UI.showMisconception(mc);
+                if(mc.boardHint)UI.setBoardHint(mc.boardHint);
+                await this.delay(800);
+                UI.addMsg('ai','理解了吗？再试一次~ 💪');
+                await this.delay(400);
+                UI.showInputBar('再想想...');
+                return; // 不计入retries，给学生重新回答的机会
+            }
+            // ❌ 这一步未通过（非misconception）
+            s.ladderRetries++;
+            Backend.addTimeline('fail',`<b>${step.name} ✗</b> (第${s.ladderRetries}次)`);
+
+            if(s.ladderRetries>=2){
+                // 持续困难 → 直接告知答案，继续下一步
+                s.ladderStates[s.ladderIdx]='fail';
+                UI.showLadderProgress(ladder,s.ladderIdx,s.ladderStates);
+                await this.delay(300);
+                UI.addMsg('ai',step.tellAnswer,'hint');
+                UI.addBoardStep(step.boardStep);
+                if(step.boardHint)UI.setBoardHint(step.boardHint);
+                s.mastery.knowledge=Math.max(s.mastery.knowledge-.1,.1);
+
+                s.ladderRetries=0;
+                s.ladderIdx++;
+                if(s.ladderIdx>=ladder.length){
+                    await this.delay(600);this.finishLadder();
+                }else{
+                    s.ladderStates[s.ladderIdx]='active';
+                    UI.showLadderProgress(ladder,s.ladderIdx,s.ladderStates);
+                    await this.delay(600);
+                    UI.addMsg('ai','没关系，继续下一步！');
+                    await this.delay(400);this.askLadderStep();
+                }
+            }else{
+                // 第一次错 → 给提示再试，并提供回退选项
+                await this.delay(300);
+                UI.addMsg('ai',step.hintOnWrong,'hint');
+                await this.delay(400);
+                if(s.ladderIdx>0){
+                    // 提供回退选项
+                    UI.showOptions([
+                        {label:'💡 我再想想',value:'retry'},
+                        {label:'🔙 前面的没懂，回退一步',value:'goback'}
+                    ],c=>{
+                        if(c==='goback'){
+                            // 回退到上一步
+                            s.ladderStates[s.ladderIdx]='pending';
+                            s.ladderIdx--;
+                            s.ladderStates[s.ladderIdx]='active';
+                            s.ladderRetries=0;
+                            // 移除板书最后一步
+                            UI._boardSteps.pop();
+                            UI._renderBoard();
+                            UI.showLadderProgress(ladder,s.ladderIdx,s.ladderStates);
+                            Backend.addTimeline('info',`<b>🔙 回退</b> → ${ladder[s.ladderIdx].name}`);
+                            UI.addMsg('ai',`好，我们回到「<b>${ladder[s.ladderIdx].name}</b>」再讲一遍 💪`);
+                            this.delay(500).then(()=>this.askLadderStep());
+                        }else{
+                            UI.showInputBar('再想想...');
+                        }
+                    });
+                }else{
+                    UI.showInputBar('再想想...');
+                }
+            }
+        }
+    },
+
+    async finishLadder(){
+        const s=this.state, flow=DIAGNOSIS_FLOWS[s.flowId];
+        const q=s._ladderQ||QUESTION_BANK[flow.mainId];
+        const returnPhase=s._ladderReturnPhase||null; // 记住梯子结束后回到哪个阶段
+        UI.removeLadderProgress();
+        if(!returnPhase)UI.setBoardConclusion(flow.boardConclusion);
+
+        // 统计梯子表现
+        const doneCount=s.ladderStates.filter(x=>x==='done').length;
+        const failCount=s.ladderStates.filter(x=>x==='fail').length;
+        const skipCount=s.ladderStates.filter(x=>x==='skip').length;
+        const total=s.ladderStates.length;
+
+        Backend.addTimeline('info',`<b>梯子完成</b> ✓${doneCount} ✗${failCount} ⏭${skipCount}`);
+
+        // 诊断面板
+        let diagDesc='';
+        if(failCount===0&&skipCount===0)diagDesc='全部步骤独立完成！';
+        else if(failCount===0)diagDesc=`跳过了前 ${skipCount} 步（已掌握），后续全部完成。`;
+        else diagDesc=`${failCount}步需要辅助讲解。薄弱环节：${s.ladderStates.map((st,i)=>st==='fail'?q.teachingLadder[i].name:null).filter(Boolean).join('、')}`;
+
+        const diagTags=s.ladderStates.map((st,i)=>{
+            const name=q.teachingLadder[i].name;
+            if(st==='done')return`${name} ✓`;
+            if(st==='fail')return`${name} ✗`;
+            if(st==='skip')return`${name} ⏭`;
+            return null;
+        }).filter(Boolean);
+
+        UI.addDiagPanel('讲解梯子结果',diagDesc,diagTags);
+
+        // 调整 mastery
+        s.mastery.pattern=doneCount/(total-skipCount||1)*.6;
+
+        await this.delay(800);
+
+        // 从巩固/升维题的梯子返回
+        if(returnPhase==='consolidate'){
+            s.phase='consolidate';s._ladderReturnPhase=null;
+            if(doneCount>failCount&&flow.levelUpId){
+                UI.addMsg('ai','讲解完毕！要不要挑战升维题？😏');
+                UI.showOptions([{label:'🚀 升维！',value:'levelUp'},{label:'✅ 看结果',value:'done'}],c=>{if(c==='levelUp')this.startLevelUp();else this.showFinalResult();});
+            }else{
+                UI.addMsg('ai','讲解完毕，来看看整体表现吧');
+                UI.showNextBtn('看结果',()=>this.showFinalResult());
+            }
+            return;
+        }
+        if(returnPhase==='levelUp'){
+            s.phase='levelUp';s._ladderReturnPhase=null;
+            UI.addMsg('ai','讲解完毕，来看看整体表现吧');
+            UI.showNextBtn('看报告',()=>this.showFinalResult());
+            return;
+        }
+
+        if(doneCount>failCount&&flow.consolidateId){
+            UI.addMsg('ai','理解了！来做一道巩固题验证一下 💪');
+            UI.showNextBtn('💪 巩固练习',()=>this.startConsolidate());
+        }else if(flow.consolidateId){
+            UI.addMsg('ai','再练一道巩固一下？');
+            UI.showOptions([{label:'💪 巩固练习',value:'consolidate'},{label:'✅ 看结果',value:'done'}],c=>{if(c==='consolidate')this.startConsolidate();else this.showFinalResult();});
+        }else{
+            this.showFinalResult();
+        }
+    },
+
+    // === 巩固 / 升维 / 结果（基本不变）===
+    async startConsolidate(){
+        const s=this.state,flow=DIAGNOSIS_FLOWS[s.flowId],q=QUESTION_BANK[flow.consolidateId];
+        s.phase='consolidate';s.currentQ=q;UI.updateProgress(2);
+        Backend.addTimeline('info','<b>巩固</b>');Backend.updateTags({phase:"🏋️ 巩固"});
+        UI.setQuestion(q,'🏋️ 巩固练习');UI.clearBoard();
+        await this.delay(400);UI.addMsg('ai',flow.consolidatePrompt||'巩固~');UI.showInputBar(`答案？（${q.unit}）`);
+    },
+    async processConsolidate(val){
+        const s=this.state,q=s.currentQ,flow=DIAGNOSIS_FLOWS[s.flowId];
+        s.totalQuestions++;
+        if(val===q.answer){
+            s.correctCount++;s.mastery.pattern=Math.min(s.mastery.pattern+.35,.85);
+            Backend.addTimeline('pass','<b>巩固 ✓</b>');await this.delay(500);UI.addMsg('ai',q.correctFeedback||'🎉 完美！','success');
+            if(flow.levelUpId){await this.delay(800);UI.addMsg('ai','升维？😏');UI.showOptions([{label:'🚀 升维！',value:'levelUp'},{label:'✅ 结果',value:'done'},{label:'🔄 换题',value:'back'}],c=>{if(c==='levelUp')this.startLevelUp();else if(c==='back')this.goBack();else this.showFinalResult();});}
+            else this.showFinalResult();
+        }else{
+            Backend.addTimeline('fail','<b>巩固 ✗</b>');s.mastery.pattern=Math.min(s.mastery.pattern+.15,.5);
+            await this.delay(500);UI.addMsg('ai',`<b>${val}</b> 不对。`+(q.wrongHint||`答案 <b>${q.answer} ${q.unit}</b>`),'hint');
+            if(q.teachingLadder&&q.teachingLadder.length){
+                await this.delay(800);UI.addMsg('ai','没关系，我们一步步来 💪');
+                UI.showNextBtn('📖 开始讲解',()=>{s._ladderReturnPhase='consolidate';this.startLadder(0,q);});
+            }else{
+                await this.delay(1000);UI.showNextBtn('看结果',()=>this.showFinalResult());
+            }
+        }
+    },
+    async startLevelUp(){
+        const s=this.state,flow=DIAGNOSIS_FLOWS[s.flowId],q=QUESTION_BANK[flow.levelUpId];
+        s.phase='levelUp';s.currentQ=q;UI.updateProgress(3);
+        Backend.addTimeline('info','<b>升维</b>');Backend.updateTags({phase:"🚀 升维"});
+        UI.setQuestion(q,'🚀 升维挑战');UI.clearBoard();
+        await this.delay(400);UI.addMsg('ai',flow.levelUpPrompt||'挑战~');UI.showInputBar(`答案？（${q.unit}）`);
+    },
+    async processLevelUp(val){
+        const s=this.state,q=s.currentQ;s.totalQuestions++;
+        if(val===q.answer){s.correctCount++;s.mastery.pattern=Math.min(s.mastery.pattern+.25,.95);Backend.addTimeline('pass','<b>升维 ✓</b>');await this.delay(500);UI.addMsg('ai',q.correctFeedback||'🎉🎉 太强了！','success');}
+        else{
+            Backend.addTimeline('fail','<b>升维 ✗</b>');s.mastery.pattern=Math.min(s.mastery.pattern+.1,.7);await this.delay(500);UI.addMsg('ai',`<b>${val}</b> 不对。`+(q.wrongHint||`答案 <b>${q.answer} ${q.unit}</b>`),'hint');
+            if(q.teachingLadder&&q.teachingLadder.length){
+                await this.delay(800);UI.addMsg('ai','来，我们拆解一下 💪');
+                UI.showNextBtn('📖 开始讲解',()=>{s._ladderReturnPhase='levelUp';this.startLadder(0,q);});
+                return;
+            }
+        }
+        await this.delay(800);UI.showNextBtn('看报告',()=>this.showFinalResult());
+    },
+    showFinalResult(){
+        const s=this.state,flow=DIAGNOSIS_FLOWS[s.flowId],mq=QUESTION_BANK[flow.mainId];
+        UI.updateProgress(3);UI.hideInputBar();UI.clearQuestion();UI.clearBoard();
+        const kP=Math.round(s.mastery.knowledge*100),pP=Math.round(s.mastery.pattern*100);
+        const grade=pP>=70?'pass':pP>=40?'retry':'fail';
+        Backend.addTimeline(grade==='pass'?'pass':'fail',`<b>结束</b> ${kP}%/${pP}%`);
+        Backend.updateJSON({End:true,Mastery:{knowledge:kP+'%',pattern:pP+'%'},LadderResult:s.ladderStates});
+        const abilities=DataLayer.assessAbilities(mq,s.mastery);
+        const rows=[['知识点',(mq.knowledge||{}).L4||mq.title],['考法',mq.pattern||''],['四维',DataLayer.describeFourDim(mq.fourDim).join(' · ')],['知识掌握',kP+'%'],['考法掌握',pP+'%'],['正确率',s.correctCount+'/'+s.totalQuestions]];
+        if(s.errorPattern)rows.push(['错因',s.errorPattern.type]);
+        // 梯子结果
+        if(s.ladderStates.length){
+            const doneC=s.ladderStates.filter(x=>x==='done').length;
+            const failC=s.ladderStates.filter(x=>x==='fail').length;
+            rows.push(['讲解梯子',`✓${doneC} ✗${failC} / ${s.ladderStates.length}步`]);
+        }
+        if(pP>=60&&flow.dagUnlock)rows.push(['解锁',flow.dagUnlock.join('、')]);
+        UI.showResult(grade,rows);UI.showAbilityCard(abilities);UI.showRecommendations(pP,flow.dagUnlock);
+        // 标记关卡完成 + 更新进度条
+        UI.markStageComplete(s.flowId);UI.renderStageBar(s.flowId);
+        // 找下一个未完成的关卡
+        const nextQ=MAIN_QUESTIONS.find(qId=>qId!==s.flowId&&!UI._stageCompleted[qId]);
+        if(nextQ){
+            const ni=TOPIC_INFO[nextQ];
+            UI.showNextBtn(`➡️ 下一关：${ni?.name||nextQ}`,()=>this.selectTopic(nextQ));
+        }
+        UI.showNextBtn('🔄 选择其他题目',()=>this.goBack());
+    },
+    goBack(){
+        UI.clearAll();document.getElementById('timeline').innerHTML='<h3>📋 诊断时间线</h3>';
+        document.getElementById('kgSection').style.display='none';document.getElementById('ideaSection').style.display='none';
+        Backend.updateJSON({Status:"等待选择题目..."});Backend.updateTags({phase:"选题中"});Backend.updateStrategy("💡 等待选题","选择题目后启动");
+        UI.showTopicSelector();
+    }
+};
+
+// ========================================================
+// 启动
+// ========================================================
+UI.init();
+UI.answerInput.addEventListener('keydown',e=>{if(e.key==='Enter')Engine.handleSubmit();});
+const _qOk=loadQuestions();if(_qOk)Backend.addTimeline('info',`<b>题库</b> ${Object.keys(QUESTION_BANK).length}道`);UI.showTopicSelector();
+DataLayer.init().then(()=>{if(DataLayer.ready)Backend.addTimeline('info',`<b>知识图谱</b> ${Object.keys(DataLayer.kgMap).length}个L4`);});
+</script>
+</body>
+</html>

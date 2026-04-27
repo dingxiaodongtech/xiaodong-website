@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>九九乘法了个羊 - 终极丝滑版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0; padding: 0; 
+            background-color: #f0fdf4; 
+            overscroll-behavior: none; touch-action: none;
+            font-family: 'Nunito', ui-rounded, 'Hiragino Maru Gothic ProN', system-ui, sans-serif;
+            user-select: none; -webkit-user-select: none;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop { animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
+        @keyframes errorShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+        .animate-error-shake { animation: errorShake 0.3s ease-in-out; }
+
+        @keyframes explode {
+            0% { transform: translate(0, 0) scale(1.2); opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+        }
+        .particle {
+            position: fixed; border-radius: 50%; pointer-events: none; z-index: 10001;
+            animation: explode 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* =========================================
+           卡牌底板 (立体白瓷质感)
+           ========================================= */
+        .tile-base {
+            background-color: #ffffff; 
+            border-radius: 8px; 
+            border: 1px solid #cbd5e1; 
+            border-bottom: 4px solid #94a3b8; 
+            display: flex;
+            align-items: center; 
+            justify-content: center;
+            transition: transform 0.08s ease, border-bottom-width 0.08s ease, box-shadow 0.2s;
+            position: relative; 
+            overflow: hidden; 
+            box-shadow: 0 3px 4px rgba(0, 0, 0, 0.05); 
+            font-weight: 900;
+        }
+
+        .cursor-pointer:active { 
+            border-bottom-width: 1px !important; 
+            transform: translateY(3px) scale(0.98) !important; 
+        }
+
+        /* 字号与留白 */
+        .num-base { z-index: 10; position: relative; }
+        .text-uniform { font-size: 22px; letter-spacing: 0px; } 
+        .slot-uniform { font-size: 20px; letter-spacing: 0px; }
+
+        /* 同色系明暗排版 */
+        .tier-B .num-base { color: #526e65; }
+        .tier-A .num-base { color: #059669; }
+        .tier-S .num-base { color: #0d9488; }
+        .tier-SS .num-base { color: #4d7c0f; }
+        .tier-C .num-base { color: #022c22; }
+        
+        .tier-SSS { background-color: #ecfdf5; border-color: #a7f3d0; border-bottom-color: #6ee7b7;}
+        .tier-SSS .num-base { color: #059669; }
+
+        /* =========================================
+           ✨ 修复视觉：能点与不能点 (彻底解决发光和扁平问题)
+           ========================================= */
+        .card-covered {
+            pointer-events: none; 
+            /* 弃用内部蒙版和扁平化，直接使用全局滤镜：降低亮度、降低饱和度，完美保留物理厚度和边框颜色比例 */
+            filter: brightness(0.6) saturate(0.3) contrast(0.9) !important; 
+            transform: translateY(1px); /* 极其细微的视觉下沉感 */
+        }
+        /* 去除伪元素覆盖 */
+        .card-covered::after { display: none; }
+
+        /* --- 沉浸式木纹卡槽 --- */
+        #slot-area {
+            background-color: #2f4f4f; 
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 15px, rgba(0,0,0,0.1) 15px, rgba(0,0,0,0.1) 30px);
+            border-radius: 16px; 
+            border: 4px solid #1a3622;
+            box-shadow: inset 0 8px 16px rgba(0,0,0,0.5), 0 4px 10px rgba(0,0,0,0.1); 
+            transition: all 0.3s;
+            padding: 10px 10px; 
+            height: 22vw; max-height: 90px;
+        }
+        .slot-placeholder { background-color: rgba(0,0,0,0.35); border-radius: 6px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.4); border: 1px dashed rgba(255,255,255,0.15);}
+
+        @keyframes dangerFlash {
+            0%, 100% { border-color: #1a3622; box-shadow: inset 0 8px 16px rgba(0,0,0,0.5); }
+            50% { border-color: #ef4444; box-shadow: inset 0 4px 8px rgba(0,0,0,0.4), 0 0 30px rgba(239, 68, 68, 0.8); }
+        }
+        .danger-warning { animation: dangerFlash 1s infinite; }
+
+        /* 浮动特效 */
+        @keyframes equationFlyUp {
+            0% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+            80% { transform: translateX(-50%) translateY(-35px) scale(1.1); opacity: 1; }
+            100% { transform: translateX(-50%) translateY(-50px) scale(1); opacity: 0; }
+        }
+        .equation-overlay {
+            position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+            display: flex; flex-direction: column; align-items: center; z-index: 10002; 
+            pointer-events: none; white-space: nowrap;
+            background: rgba(255, 255, 255, 0.95); padding: 8px 16px 6px 16px; 
+            border-radius: 20px; backdrop-filter: blur(8px); 
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.05);
+        }
+        .equation-overlay.floating { animation: equationFlyUp 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .math-sign { font-size: 20px; font-weight: 900; color: #94a3b8; margin: 0 4px; }
+        .equation-mnemonic { margin-top: 4px; color: #10b981; font-size: 15px; font-weight: 900; letter-spacing: 1px; }
+        .eq-card { position: relative; z-index: 10003; }
+
+        @keyframes scoreFloat {
+            0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; }
+            20% { transform: translate(-50%, -25px) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -60px) scale(1); opacity: 0; }
+        }
+        .score-float {
+            position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
+            color: #10b981; font-weight: 900; font-size: 26px; text-shadow: 0 3px 0 #fff;
+            z-index: 10000; pointer-events: none; display: flex; flex-direction: column; align-items: center; line-height: 1.1;
+        }
+        .combo-text { color: #f59e0b; font-size: 14px; font-style: italic; }
+    </style>
+</head>
+<body class="flex justify-center h-[100dvh] overflow-hidden">
+    <div id="app" class="w-full max-w-[430px] h-full relative flex flex-col">
+        
+        <div class="flex justify-between items-center px-5 py-4 w-full z-20 bg-white/70 backdrop-blur-md border-b border-white/50 shadow-sm">
+            <div class="flex flex-col items-start w-1/3">
+                <span class="text-emerald-700 font-black text-[10px] tracking-widest uppercase bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
+                    Stage <span id="level-display">1</span>
+                </span>
+                <div class="flex items-center space-x-1.5 text-emerald-800 font-mono font-black text-base mt-1">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span id="timer">00:00</span>
+                </div>
+            </div>
+            
+            <div class="flex flex-col items-center justify-center w-1/3 transform transition-transform duration-200" id="score-container">
+                <span id="score-display" class="font-mono font-black text-4xl text-emerald-500 leading-none">0</span>
+                <span class="text-[9px] text-emerald-700/60 font-black tracking-widest uppercase mt-1">Score</span>
+            </div>
+
+            <div class="flex space-x-2 w-1/3 justify-end">
+                <button onclick="confirmReset()" class="w-9 h-9 bg-white rounded-full border border-emerald-100 flex items-center justify-center text-emerald-600 active:scale-90 hover:bg-emerald-50 transition-all shadow-sm">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                </button>
+                <button onclick="toggleBook(true)" class="w-9 h-9 bg-white rounded-full border border-emerald-100 flex items-center justify-center text-emerald-600 active:scale-90 hover:bg-emerald-50 transition-all shadow-sm">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                </button>
+            </div>
+        </div>
+
+        <div id="equation-container" class="absolute bottom-[70px] left-0 right-0 h-[60px] pointer-events-none z-[1000]"></div>
+
+        <div id="board" class="flex-1 relative w-full mt-2 flex justify-center items-center z-[1]"></div>
+
+        <div class="h-[25vh] min-h-[160px] w-full flex flex-col items-center justify-end pb-[env(safe-area-inset-bottom)] pb-4 z-[20] relative box-border">
+            
+            <div class="w-[94%] flex justify-end space-x-3 mb-2 px-1 pointer-events-auto z-30">
+                <button id="btn-wildcard" onclick="triggerWildcard()" class="relative w-[12vw] h-[12vw] max-w-[48px] max-h-[48px] bg-amber-50 rounded-xl border-2 border-amber-200 border-bottom-[4px] border-b-amber-400 flex items-center justify-center shadow-md active:translate-y-1 active:border-b-2 transition-all opacity-60">
+                    <div id="badge-wildcard" class="absolute -top-2 -right-2 bg-rose-500 text-white text-[11px] font-black px-1.5 py-0.5 min-w-[20px] text-center rounded-full shadow-sm border-2 border-white leading-none">0</div>
+                    <div class="w-6 h-6 text-amber-500">
+                        <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
+                    </div>
+                </button>
+                <button id="btn-shuffle" onclick="triggerShuffle()" class="relative w-[12vw] h-[12vw] max-w-[48px] max-h-[48px] bg-sky-50 rounded-xl border-2 border-sky-200 border-bottom-[4px] border-b-sky-400 flex items-center justify-center shadow-md active:translate-y-1 active:border-b-2 transition-all opacity-60">
+                    <div id="badge-shuffle" class="absolute -top-2 -right-2 bg-rose-500 text-white text-[11px] font-black px-1.5 py-0.5 min-w-[20px] text-center rounded-full shadow-sm border-2 border-white leading-none">0</div>
+                    <div class="w-6 h-6 text-sky-500">
+                        <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
+                    </div>
+                </button>
+            </div>
+
+            <div id="slot-area" class="w-[94%] flex items-center px-2.5 space-x-1.5 relative mb-2">
+                <div id="slot-placeholders" class="absolute inset-0 flex items-center px-2.5 space-x-1.5 pointer-events-none">
+                    <div class="w-[10vw] h-[13vw] max-w-[42px] max-h-[55px] slot-placeholder"></div>
+                    <div class="w-[10vw] h-[13vw] max-w-[42px] max-h-[55px] slot-placeholder"></div>
+                    <div class="w-[10vw] h-[13vw] max-w-[42px] max-h-[55px] slot-placeholder"></div>
+                    <div class="w-[10vw] h-[13vw] max-w-[42px] max-h-[55px] slot-placeholder"></div>
+                    <div class="w-[10vw] h-[13vw] max-w-[42px] max-h-[55px] slot-placeholder"></div>
+                    <div class="w-[10vw] h-[13vw] max-w-[42px] max-h-[55px] slot-placeholder"></div>
+                    <div class="w-[10vw] h-[13vw] max-w-[42px] max-h-[55px] slot-placeholder"></div>
+                </div>
+                <div id="slot-container" class="flex items-center space-x-1.5 z-10 w-full h-full pt-[2px]"></div>
+            </div>
+        </div>
+
+        <div id="settlement-modal" class="hidden absolute inset-0 bg-slate-900/40 z-[100] flex items-center justify-center p-6 backdrop-blur-sm transition-opacity">
+            <div id="settlement-card" class="relative w-full max-w-sm bg-white rounded-3xl p-8 flex flex-col items-center shadow-2xl animate-pop border border-slate-100">
+                <div id="settlement-ribbon" class="absolute -top-6 px-8 py-2 rounded-full shadow-md border-2 border-white text-white font-black text-xl tracking-widest whitespace-nowrap bg-emerald-500">通关成功</div>
+                <div id="settlement-icon" class="text-6xl mb-4 mt-6">🎉</div>
+                <h2 id="settlement-title" class="text-2xl font-black text-slate-800 mb-2">标题</h2>
+                <div id="settlement-score-area" class="bg-slate-50 w-full rounded-2xl p-4 my-4 border border-slate-200">
+                    <div class="text-slate-500 text-sm font-bold mb-1 text-center">最终得分</div>
+                    <div id="settlement-score" class="text-5xl font-mono font-black text-emerald-500 mb-2 text-center">0</div>
+                    <div class="flex justify-between text-sm text-slate-500 mt-2 border-t border-slate-200 pt-2 px-2">
+                        <span>耗时: <span id="settlement-time" class="font-mono text-slate-700 font-bold">00:00</span></span>
+                        <span>最高连击: <span id="settlement-max-combo" class="font-mono text-amber-500 font-bold">x1</span></span>
+                    </div>
+                </div>
+                <div id="settlement-grade" class="text-2xl font-bold mb-2 hidden text-center"></div>
+                <p id="settlement-desc" class="text-slate-600 mb-8 font-bold text-center leading-relaxed text-sm"></p>
+                <button id="settlement-btn" class="w-full py-4 rounded-2xl font-black text-xl transition-all active:scale-95 text-white shadow-sm">继续</button>
+            </div>
+        </div>
+
+        <div id="tutorial-modal" class="hidden absolute inset-0 bg-slate-900/40 z-[90] flex items-center justify-center p-6 backdrop-blur-sm">
+            <div class="bg-white w-full max-w-sm rounded-3xl p-6 flex flex-col items-center shadow-2xl animate-pop text-center border border-slate-100">
+                <h2 class="text-2xl font-black text-slate-800 mb-4">📖 卡牌大师必修课</h2>
+                <div class="text-left space-y-4 text-slate-600 mb-6 text-sm font-medium">
+                    <p>👉 第一关为<b>热身</b>，仅有 <b class="text-emerald-600 text-lg">9</b> 张牌！</p>
+                    <p>✨ 规则：集齐 <b>因数×因数=积</b> 即可消除！</p>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 mt-2 text-center">
+                        <p class="font-bold text-slate-700 mb-1">💎 纯净玉石排版</p>
+                        <p class="text-slate-500 text-xs">点出带有星标/交叉箭头的卡牌，可以**收集道具**。当卡牌陷入死局时，可以点击右下角的小道具栏保命解局！</p>
+                    </div>
+                </div>
+                <button onclick="closeTutorial()" class="w-full py-4 bg-emerald-500 text-white rounded-2xl font-black text-lg active:scale-95 transition-all shadow-sm hover:bg-emerald-600">开始挑战</button>
+            </div>
+        </div>
+
+        <div id="book-modal" class="hidden absolute inset-0 bg-[#f8fafc] z-[110] flex flex-col transition-transform duration-300 translate-y-full">
+            <div class="p-5 bg-white shadow-sm flex justify-between items-center sticky top-0 z-10 border-b border-slate-100">
+                <h2 class="text-2xl font-black text-[#2c3e50] tracking-wider">乘法口诀卡片图鉴</h2>
+                <button onclick="toggleBook(false)" class="p-2 bg-slate-100/80 rounded-full active:scale-90 transition-all text-slate-500">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div id="book-content" class="flex-1 overflow-y-auto p-5 space-y-6 pb-20 no-scrollbar bg-white"></div>
+        </div>
+
+    </div>
+
+    <script>
+        const MULTIPLICATION_PAIRS = [];
+        const ALL_NUMBERS = new Set();
+        for (let i = 1; i <= 9; i++) {
+            for (let j = i; j <= 9; j++) {
+                MULTIPLICATION_PAIRS.push([i, j, i * j]);
+                ALL_NUMBERS.add(i); ALL_NUMBERS.add(j); ALL_NUMBERS.add(i * j);
+            }
+        }
+        const UNIQUE_NUMBERS = Array.from(ALL_NUMBERS).sort((a, b) => a - b);
+        
+        const getTier = (val) => {
+            if (val === '万能' || val === '洗牌') return 'SSS';
+            if ([4, 6, 8, 9].includes(val)) return 'SS';
+            if ([1, 2, 3, 5, 7].includes(val)) return 'S';
+            if ([12, 16, 18, 24, 36].includes(val)) return 'A';
+            if ([25, 49, 64, 81].includes(val)) return 'C';
+            return 'B';
+        };
+
+        const iconSparkles = `<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>`;
+        const iconShuffle = `<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>`;
+
+        let cards = [], slot = [];
+        let unlockedCards = new Set();
+        let currentLevel = 1;
+        let timeElapsed = 0, timerInterval = null, flyingCardsCount = 0, matchCounter = 0;
+        let currentScore = 0, comboMultiplier = 0, lastMatchTime = 0, maxComboReached = 0;
+        let isProcessingMatch = false; 
+        let equationTimes = {}; 
+        let currentMatchStartTime = Date.now();
+
+        // 道具库状态
+        let wildcardCount = 0;
+        let shuffleCount = 0;
+
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        document.body.addEventListener('pointerdown', initAudio, { once: true });
+
+        function playMildWarningBeep() {
+            if (!audioCtx) return;
+            let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.type = 'sine'; osc.frequency.setValueAtTime(250, audioCtx.currentTime); 
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime); 
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        function playSuccessChime() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.type = 'triangle'; 
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        function createExplosion(x, y) {
+            for(let i = 0; i < 15; i++) {
+                let p = document.createElement('div');
+                p.className = 'particle';
+                p.style.width = (Math.random() * 8 + 4) + 'px'; 
+                p.style.height = p.style.width;
+                p.style.background = ['#059669', '#4d7c0f', '#0d9488', '#022c22'][Math.floor(Math.random()*4)];
+                p.style.left = x + 'px'; p.style.top = y + 'px';
+                let angle = Math.random() * Math.PI * 2;
+                let distance = Math.random() * 50 + 30;
+                p.style.setProperty('--tx', Math.cos(angle) * distance + 'px');
+                p.style.setProperty('--ty', Math.sin(angle) * distance + 'px');
+                document.body.appendChild(p);
+                setTimeout(() => p.remove(), 600);
+            }
+        }
+
+        function getKouJue(a, b, c) {
+            const nums = [a, b].sort((x, y) => x - y);
+            const zh = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+            let strC = c < 10 ? '得' + zh[c] : (Math.floor(c / 10) === 1 ? '十' : zh[Math.floor(c / 10)] + '十') + (c % 10 === 0 ? '' : zh[c % 10]);
+            return `${zh[nums[0]]}${zh[nums[1]]}${strC}`;
+        }
+
+        // ✨ 核心修复：宽容碰撞检测 (Hitbox Shrink)
+        // 允许卡牌边缘被微微碰到但不被判定为遮盖，手感更顺滑
+        function checkOverlap(a, b) {
+            const hitX = 0.05; // 容错率：X轴收缩 15%
+            const hitY = 0.05; // 容错率：Y轴收缩 15%
+            
+            const aLeft = a.x + hitX, aRight = a.x + 1.0 - hitX;
+            const aTop = a.y + hitY, aBottom = a.y + 1.3 - hitY;
+            const bLeft = b.x + hitX, bRight = b.x + 1.0 - hitX;
+            const bTop = b.y + hitY, bBottom = b.y + 1.3 - hitY;
+            
+            return (aLeft < bRight && aRight > bLeft && aTop < bBottom && aBottom > bTop);
+        }
+
+        function checkCovered(cardList) {
+            cardList.forEach(c => c.isCovered = false);
+            for (let i = 0; i < cardList.length; i++) {
+                for (let j = 0; j < cardList.length; j++) {
+                    if (i === j) continue;
+                    const a = cardList[i], b = cardList[j];
+                    const isRenderedOnTop = (b.z > a.z) || (b.z === a.z && j > i);
+                    if (isRenderedOnTop && checkOverlap(a, b)) { 
+                        a.isCovered = true; 
+                        break; 
+                    }
+                }
+            }
+            return cardList;
+        }
+
+        function generateLevel(level) {
+            let layoutNodes = [], idCounter = 0, layers = [], pairsCount = 0, toolsList = [];
+
+            if (level === 1) {
+                layers = [ { z: 0, count: 5, xRange: [1.5, 5.5], yRange: [2.5, 5.5] }, { z: 1, count: 4, xRange: [2.0, 5.0], yRange: [3.0, 5.0] } ];
+                pairsCount = 3;
+            } else {
+                layers = [ 
+                    { z: 0, count: 42, xRange: [0.0, 7.5], yRange: [0.0, 8.5] }, 
+                    { z: 1, count: 36, xRange: [0.3, 7.2], yRange: [0.3, 8.2] }, 
+                    { z: 2, count: 30, xRange: [0.6, 6.9], yRange: [0.6, 7.9] }, 
+                    { z: 3, count: 22, xRange: [1.0, 6.5], yRange: [1.0, 7.5] }, 
+                    { z: 4, count: 14, xRange: [1.5, 6.0], yRange: [1.5, 7.0] }, 
+                    { z: 5, count: 8,  xRange: [2.0, 5.5], yRange: [2.0, 6.5] } 
+                ];
+                pairsCount = 50; toolsList = ['万能', '洗牌']; 
+            }
+
+            layers.forEach(layer => {
+                for (let i = 0; i < layer.count; i++) { layoutNodes.push({ id: `n_${idCounter++}`, x: layer.xRange[0] + Math.random() * (layer.xRange[1] - layer.xRange[0]), y: layer.yRange[0] + Math.random() * (layer.yRange[1] - layer.yRange[0]), z: layer.z, coveredByCount: 0, coversIds: [], assignedValue: null, type: null, tier: null }); }
+            });
+
+            // 同样应用宽容碰撞箱构建依赖关系
+            for (let i = 0; i < layoutNodes.length; i++) {
+                for (let j = i + 1; j < layoutNodes.length; j++) {
+                    let a = layoutNodes[i], b = layoutNodes[j]; let bottom = a.z <= b.z ? a : b; let top = a.z > b.z ? a : b;
+                    if (checkOverlap(bottom, top)) { bottom.coveredByCount++; top.coversIds.push(bottom.id); }
+                }
+            }
+
+            let maxRetries = 20;
+            let finalNodes = [];
+
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                let inDegree = {};
+                layoutNodes.forEach(n => { n.assignedValue = null; n.type = null; n.tier = null; inDegree[n.id] = n.coveredByCount; });
+
+                let remainingNodes = new Set(layoutNodes);
+                let actionPools = [];
+                for (let i = 0; i < pairsCount; i++) actionPools.push({ type: 'pair', data: MULTIPLICATION_PAIRS[Math.floor(Math.random() * MULTIPLICATION_PAIRS.length)] });
+                toolsList.forEach(tool => actionPools.push({ type: 'tool', data: tool }));
+                actionPools.sort(() => Math.random() - 0.5);
+
+                let attemptFailed = false;
+
+                for (let action of actionPools) {
+                    let available = Array.from(remainingNodes).filter(n => inDegree[n.id] === 0);
+
+                    if (action.type === 'pair') {
+                        if (available.length < 3) { attemptFailed = true; break; }
+                        let picked = [];
+                        for(let i=0; i<3; i++) {
+                            let idx = Math.floor(Math.random() * available.length);
+                            picked.push(available[idx]); available.splice(idx, 1);
+                        }
+                        let nums = [action.data[0], action.data[1], action.data[2]].sort(() => Math.random() - 0.5);
+                        picked[0].assignedValue = nums[0]; picked[0].type = 'number'; picked[0].tier = getTier(nums[0]);
+                        picked[1].assignedValue = nums[1]; picked[1].type = 'number'; picked[1].tier = getTier(nums[1]);
+                        picked[2].assignedValue = nums[2]; picked[2].type = 'number'; picked[2].tier = getTier(nums[2]);
+
+                        picked.forEach(n => { remainingNodes.delete(n); n.coversIds.forEach(coveredId => { inDegree[coveredId]--; }); });
+                    } else if (action.type === 'tool') {
+                        if (available.length < 1) { attemptFailed = true; break; }
+                        let idx = Math.floor(Math.random() * available.length);
+                        let pickedNode = available[idx];
+                        pickedNode.assignedValue = action.data; pickedNode.type = 'tool'; pickedNode.tier = 'SSS';
+                        remainingNodes.delete(pickedNode); pickedNode.coversIds.forEach(coveredId => { inDegree[coveredId]--; });
+                    }
+                }
+
+                if (!attemptFailed && remainingNodes.size === 0) {
+                    console.log(`🧠 完美解局生成成功！耗费算法尝试次数：${attempt + 1}`);
+                    finalNodes = layoutNodes;
+                    break;
+                }
+            }
+
+            if (finalNodes.length === 0) {
+                console.warn("未能生成解，降级为随机发牌");
+                finalNodes = layoutNodes;
+                let fallbackPool = [];
+                for (let i = 0; i < pairsCount; i++) {
+                    let pair = MULTIPLICATION_PAIRS[Math.floor(Math.random() * MULTIPLICATION_PAIRS.length)];
+                    fallbackPool.push(pair[0], pair[1], pair[2]);
+                }
+                toolsList.forEach(t => fallbackPool.push(t));
+                fallbackPool.sort(() => Math.random() - 0.5); 
+                finalNodes.forEach((n, i) => { 
+                    let val = fallbackPool[i] || 2; 
+                    n.assignedValue = val; 
+                    n.type = typeof val === 'number' ? 'number' : 'tool'; 
+                    n.tier = getTier(val); 
+                });
+            }
+
+            return checkCovered(finalNodes.map(n => ({ id: n.id, value: n.assignedValue, tier: n.tier, type: n.type, x: n.x, y: n.y, z: n.z, isCovered: false })));
+        }
+
+        // 刷新道具角标
+        function updateToolBadges() {
+            document.getElementById('badge-wildcard').innerText = wildcardCount;
+            document.getElementById('badge-shuffle').innerText = shuffleCount;
+            document.getElementById('btn-wildcard').style.opacity = wildcardCount > 0 ? '1' : '0.6';
+            document.getElementById('btn-shuffle').style.opacity = shuffleCount > 0 ? '1' : '0.6';
+        }
+
+        function generateCardContent(card, isSlot = false) {
+            let html = '';
+            const textSizeClass = isSlot ? 'slot-uniform' : 'text-uniform';
+            if (card.type === 'tool') {
+                html += `<div class="w-8 h-8 z-10 relative num-base">${card.value === '万能' ? iconSparkles : iconShuffle}</div>`;
+            } else {
+                html += `<span class="num-base ${textSizeClass}">${card.value}</span>`;
+            }
+            return html;
+        }
+
+        function renderBoard() {
+            const board = document.getElementById('board'); 
+            board.innerHTML = '';
+
+            let maxX = 0, maxY = 0;
+            cards.forEach(c => {
+                if (c.x > maxX) maxX = c.x;
+                if (c.y > maxY) maxY = c.y;
+            });
+
+            const boardInner = document.createElement('div');
+            boardInner.style.position = 'relative';
+            boardInner.style.width = `calc(${maxX + 1} * min(10vw, 42px))`;
+            boardInner.style.height = `calc(${maxY + 1} * min(10vw, 42px))`;
+            
+            cards.forEach(card => {
+                const el = document.createElement('div'); el.id = card.id;
+                
+                const baseClass = `absolute tile-base w-[10vw] h-[13vw] max-w-[42px] max-h-[55px] tier-${card.tier}`;
+                el.className = card.isCovered ? `${baseClass} card-covered` : `${baseClass} cursor-pointer`;
+                
+                el.style.left = `calc(${card.x} * min(10vw, 42px))`;
+                el.style.top = `calc(${card.y} * min(10vw, 42px))`;
+                el.style.zIndex = card.z * 10;
+                
+                el.innerHTML = generateCardContent(card, false);
+                el.onclick = function() { handleCardClick(card.id, this); }; 
+                boardInner.appendChild(el);
+            });
+            
+            board.appendChild(boardInner);
+        }
+
+        function updateHintsAndWarnings() {
+            const slotArea = document.getElementById('slot-area');
+            if (slot.length >= 6) { 
+                if (!slotArea.classList.contains('danger-warning')) { slotArea.classList.add('danger-warning'); playMildWarningBeep(); } 
+            } else { slotArea.classList.remove('danger-warning'); }
+        }
+
+        function renderSlot() {
+            const container = document.getElementById('slot-container'); container.innerHTML = '';
+            slot.forEach(card => {
+                const el = document.createElement('div');
+                el.className = `relative tile-base w-[10vw] h-[13vw] max-w-[42px] max-h-[55px] tier-${card.tier}`;
+                el.innerHTML = generateCardContent(card, true); container.appendChild(el);
+            });
+            updateHintsAndWarnings();
+        }
+
+        function handleCardClick(id, element) {
+            if (isProcessingMatch) return;
+            if (element.dataset.moving === '1') return;
+            
+            const cardIndex = cards.findIndex(c => c.id === id); if (cardIndex === -1) return;
+            const card = cards[cardIndex];
+            
+            if (card.isCovered) { element.classList.remove('animate-error-shake'); void element.offsetWidth; element.classList.add('animate-error-shake'); return; }
+            
+            if (card.type === 'number') {
+                if ((slot.length + flyingCardsCount) >= 7) return;
+                flyingCardsCount++;
+            }
+
+            element.dataset.moving = '1';
+            const startRect = element.getBoundingClientRect(); cards.splice(cardIndex, 1); cards = checkCovered(cards); renderBoard(); 
+
+            const clone = document.createElement('div');
+            clone.className = element.className.replace('cursor-pointer', ''); 
+            clone.style.position = 'fixed'; clone.style.left = startRect.left + 'px'; clone.style.top = startRect.top + 'px';
+            clone.style.margin = '0'; clone.style.zIndex = '9999'; clone.innerHTML = element.innerHTML; document.body.appendChild(clone);
+
+            let targetRect = null;
+            if (card.type === 'tool') {
+                const targetBtn = card.value === '万能' ? document.getElementById('btn-wildcard') : document.getElementById('btn-shuffle');
+                targetRect = targetBtn.getBoundingClientRect();
+            } else {
+                const targetIndex = slot.length + flyingCardsCount - 1;
+                targetRect = document.getElementById('slot-placeholders').children[targetIndex].getBoundingClientRect();
+            }
+
+            const tx = targetRect.left - startRect.left; const ty = targetRect.top - startRect.top;
+            clone.getBoundingClientRect(); clone.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), width 0.3s, height 0.3s, opacity 0.3s';
+            clone.style.transform = `translate3d(${tx}px, ${ty}px, 0)`; clone.style.width = targetRect.width + 'px'; clone.style.height = targetRect.height + 'px';
+
+            setTimeout(() => {
+                clone.remove();
+                if (card.type === 'tool') { 
+                    if (card.value === '万能') wildcardCount++;
+                    else if (card.value === '洗牌') shuffleCount++;
+                    unlockedCards.add(card.value);
+                    updateToolBadges();
+                } else { 
+                    flyingCardsCount--; 
+                    slot.push(card); 
+                    renderSlot(); 
+                    checkMatch(); 
+                }
+            }, 300);
+        }
+
+        function checkMatch() {
+            if (slot.length < 3) { checkWin(); return; } 
+            const nums = slot.map(c => c.value); let matchedIndices = null, matchedA, matchedB, matchedC;
+            
+            for (let i = 0; i < nums.length; i++) {
+                for (let j = i + 1; j < nums.length; j++) {
+                    for (let k = j + 1; k < nums.length; k++) {
+                        const a = nums[i], b = nums[j], c = nums[k];
+                        if (a * b === c && a <= 9 && b <= 9) { matchedIndices = [i, j, k]; matchedA = Math.min(a,b); matchedB = Math.max(a,b); matchedC = c; break; }
+                        if (a * c === b && a <= 9 && c <= 9) { matchedIndices = [i, j, k]; matchedA = Math.min(a,c); matchedB = Math.max(a,c); matchedC = b; break; }
+                        if (b * c === a && b <= 9 && c <= 9) { matchedIndices = [i, j, k]; matchedA = Math.min(b,c); matchedB = Math.max(b,c); matchedC = a; break; }
+                    }
+                    if (matchedIndices) break;
+                }
+                if (matchedIndices) break;
+            }
+
+            if (matchedIndices) {
+                isProcessingMatch = true; 
+                matchCounter++; const currentMatchId = matchCounter;
+                
+                let timeSpent = Date.now() - currentMatchStartTime;
+                let eqString = `${matchedA}×${matchedB}=${matchedC}`;
+                if (!equationTimes[eqString]) equationTimes[eqString] = 0;
+                equationTimes[eqString] += timeSpent;
+                currentMatchStartTime = Date.now(); 
+
+                const now = Date.now();
+                if (now - lastMatchTime < 5000 && lastMatchTime !== 0) { comboMultiplier++; } else { comboMultiplier = 1; }
+                lastMatchTime = now; if(comboMultiplier > maxComboReached) maxComboReached = comboMultiplier;
+
+                const tier = getTier(matchedC); let baseScore = tier === 'C' ? 300 : tier === 'B' ? 150 : tier === 'A' ? 100 : 50; if (tier === 'SSS') baseScore = 10; 
+                const earnedScore = baseScore * comboMultiplier; currentScore += earnedScore;
+                
+                const scoreContainer = document.getElementById('score-container'); const scoreDisplay = document.getElementById('score-display');
+                scoreDisplay.innerText = currentScore; scoreContainer.classList.add('scale-110'); setTimeout(() => { scoreContainer.classList.remove('scale-110'); }, 200);
+
+                const koujue = getKouJue(matchedA, matchedB, matchedC);
+                unlockedCards.add(matchedA); unlockedCards.add(matchedB); unlockedCards.add(matchedC);
+                
+                const slotElements = document.getElementById('slot-container').children; let remainingIndices = [...matchedIndices];
+                const getIdxForVal = (val) => { for (let i = 0; i < remainingIndices.length; i++) { if (slot[remainingIndices[i]].value === val) return remainingIndices.splice(i, 1)[0]; } return remainingIndices.pop(); };
+                const orderedIndices = [getIdxForVal(matchedA), getIdxForVal(matchedB), getIdxForVal(matchedC)];
+                const startRects = orderedIndices.map(idx => slotElements[idx].getBoundingClientRect()); const matchedValues = orderedIndices.map(idx => slot[idx].value);
+
+                const matchedTiers = orderedIndices.map(idx => slot[idx].tier);
+                slot = slot.filter((_, idx) => !matchedIndices.includes(idx)); renderSlot();
+                
+                const overlay = document.createElement('div'); overlay.className = 'equation-overlay';
+                const genCardHTML = (val, tier, isHidden) => {
+                    return `<div class="eq-card tile-base w-[8vw] h-[10vw] max-w-[34px] max-h-[42px] border-bottom-width-[2px] tier-${tier}" style="visibility: ${isHidden ? 'hidden' : 'visible'}"><span class="num-base slot-uniform">${val}</span></div>`;
+                };
+                
+                overlay.innerHTML = `<div class="score-float" style="opacity:0;" id="temp-score-${currentMatchId}">+${earnedScore} ${comboMultiplier > 1 ? `<span class="combo-text">Combo x${comboMultiplier}!</span>` : ''}</div><div class="flex items-center space-x-1">${genCardHTML(matchedA, matchedTiers[0], true)} <span class="math-sign">×</span> ${genCardHTML(matchedB, matchedTiers[1], true)} <span class="math-sign">=</span> ${genCardHTML(matchedC, matchedTiers[2], true)}</div><div class="equation-mnemonic" style="opacity:0; transition: opacity 0.3s;" id="temp-mnem-${currentMatchId}">${koujue}</div>`;
+                document.getElementById('equation-container').appendChild(overlay);
+
+                const targetCardEls = overlay.querySelectorAll('.eq-card'); const clones = [];
+                orderedIndices.forEach((_, i) => {
+                    const startRect = startRects[i]; const targetRect = targetCardEls[i].getBoundingClientRect();
+                    const clone = document.createElement('div');
+
+                    clone.className = `fixed tile-base border-bottom-width-[2px] tier-${matchedTiers[i]}`;
+                    clone.style.left = startRect.left + 'px'; clone.style.top = startRect.top + 'px'; clone.style.width = startRect.width + 'px'; clone.style.height = startRect.height + 'px'; clone.style.zIndex = '10004'; clone.style.transition = 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)';
+                    clone.innerHTML = `<span class="num-base slot-uniform">${matchedValues[i]}</span>`;
+                    document.body.appendChild(clone); clones.push(clone);
+
+                    clone.getBoundingClientRect(); clone.style.left = targetRect.left + 'px'; clone.style.top = targetRect.top + 'px'; clone.style.width = targetRect.width + 'px'; clone.style.height = targetRect.height + 'px';
+                });
+
+                setTimeout(() => {
+                    clones.forEach(c => c.remove()); targetCardEls.forEach(el => el.style.visibility = 'visible');
+                    document.getElementById(`temp-score-${currentMatchId}`).style.animation = 'scoreFloat 1.2s ease-out forwards'; document.getElementById(`temp-mnem-${currentMatchId}`).style.opacity = '1';
+                    
+                    playSuccessChime(); 
+                    const eqRect = document.getElementById('equation-container').getBoundingClientRect();
+                    createExplosion(window.innerWidth/2, eqRect.top + 20);
+
+                    overlay.classList.add('floating'); setTimeout(() => overlay.remove(), 1200);
+                    isProcessingMatch = false; 
+                    setTimeout(checkMatch, 50); 
+                }, 300);
+            } else { 
+                isProcessingMatch = false; 
+                checkWin(); 
+            }
+        }
+
+        function triggerWildcard() {
+            if (wildcardCount <= 0) return;
+            if (slot.length < 2 || slot.length >= 7) { alert("卡槽内至少需要2张数字牌才能补齐哦！"); return; }
+            
+            const nums = slot.map(c => c.value); let targetValue = null;
+            for (let i = 0; i < nums.length; i++) {
+                for (let j = i + 1; j < nums.length; j++) {
+                    const a = nums[i], b = nums[j];
+                    if (a <= 9 && b <= 9) { targetValue = a * b; } else if (a <= 9 && b <= 81 && b % a === 0 && (b / a) <= 9) { targetValue = b / a; } else if (b <= 9 && a <= 81 && a % b === 0 && (a / b) <= 9) { targetValue = a / b; }
+                    if (targetValue !== null) {
+                        wildcardCount--;
+                        updateToolBadges();
+                        slot.push({ id: `w_${Date.now()}`, value: targetValue, tier: getTier(targetValue), type: 'number' });
+                        renderSlot(); checkMatch(); return;
+                    }
+                }
+            }
+            alert("当前卡槽内没有可以补齐的合法算式！");
+        }
+        
+        function triggerShuffle() {
+            if (shuffleCount <= 0) return;
+            shuffleCount--; 
+            updateToolBadges();
+            performShuffle();
+        }
+
+        function performShuffle() {
+            const shuffled = [...cards].sort(() => Math.random() - 0.5);
+            cards = cards.map((c, i) => ({ ...c, x: shuffled[i].x, y: shuffled[i].y, z: shuffled[i].z })); 
+            cards = checkCovered(cards); 
+            renderBoard();
+        }
+
+        function confirmReset() { if (confirm(`确定要重置 第 ${currentLevel} 关 吗？`)) { initGame(true, currentLevel); } }
+
+        function initGame(isRestart = false, targetLevel = 1) {
+            document.querySelectorAll('.equation-overlay, .fixed.tile-base, .particle').forEach(el => el.remove());
+
+            currentLevel = targetLevel; document.getElementById('level-display').innerText = currentLevel;
+            cards = generateLevel(currentLevel); slot = []; 
+            
+            if (isRestart || targetLevel === 1) { 
+                timeElapsed = 0; currentScore = 0; comboMultiplier = 0; maxComboReached = 0; equationTimes = {}; 
+                wildcardCount = 0; shuffleCount = 0;
+            }
+            
+            lastMatchTime = 0; flyingCardsCount = 0; matchCounter = 0; isProcessingMatch = false; currentMatchStartTime = Date.now();
+            
+            document.getElementById('settlement-modal').classList.add('hidden'); document.getElementById('score-display').innerText = currentScore;
+            updateToolBadges();
+            renderBoard(); renderSlot(); 
+            
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeElapsed++; const m = Math.floor(timeElapsed / 60).toString().padStart(2, '0'); const s = (timeElapsed % 60).toString().padStart(2, '0');
+                document.getElementById('timer').innerText = `${m}:${s}`;
+            }, 1000);
+
+            if (targetLevel === 1 && !localStorage.getItem('tutorialShown')) { document.getElementById('tutorial-modal').classList.remove('hidden'); }
+        }
+        
+        function closeTutorial() { document.getElementById('tutorial-modal').classList.add('hidden'); localStorage.setItem('tutorialShown', 'true'); initAudio(); }
+
+        function checkWin() {
+            if (cards.length === 0 && slot.length === 0) { if (currentLevel === 1) levelClear(); else gameOver(true); }
+            else if (slot.length >= 7 && flyingCardsCount === 0) gameOver(false);
+        }
+
+        function levelClear() {
+            clearInterval(timerInterval); 
+            const modal = document.getElementById('settlement-modal'); modal.classList.remove('hidden');
+            document.getElementById('settlement-ribbon').innerText = "热身完毕"; document.getElementById('settlement-ribbon').className = "absolute -top-6 px-8 py-2 rounded-full shadow-md border-2 border-white text-white font-black text-xl tracking-widest whitespace-nowrap bg-emerald-500";
+            document.getElementById('settlement-icon').innerHTML = '👏'; document.getElementById('settlement-title').innerText = "轻松搞定！";
+            document.getElementById('settlement-score-area').classList.add('hidden'); document.getElementById('settlement-grade').classList.add('hidden');
+            document.getElementById('settlement-desc').innerHTML = "<span class='text-slate-600'>下一关才是真正的脑力体操！<br>记得在牌堆中收集保命道具哦！</span>";
+            const btn = document.getElementById('settlement-btn'); btn.className = "w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black text-xl shadow-sm active:scale-95 transition-all"; btn.innerText = "进入第二关挑战"; btn.onclick = () => initGame(false, 2);
+        }
+
+        function gameOver(isWin) {
+            clearInterval(timerInterval);
+            const modal = document.getElementById('settlement-modal'); const ribbon = document.getElementById('settlement-ribbon'); const icon = document.getElementById('settlement-icon'); const title = document.getElementById('settlement-title'); const gradeEl = document.getElementById('settlement-grade'); const desc = document.getElementById('settlement-desc'); const scoreArea = document.getElementById('settlement-score-area'); const btn = document.getElementById('settlement-btn');
+            modal.classList.remove('hidden');
+
+            let hardestEq = ""; let maxTime = 0;
+            for (let eq in equationTimes) { if (equationTimes[eq] > maxTime) { maxTime = equationTimes[eq]; hardestEq = eq; } }
+
+            if (isWin) {
+                let grade = 'C', titleText = '重在参与', color = 'text-slate-500', descText = '压线过关，下次争取打出连击！';
+                if (currentScore >= 6000) { grade = 'SSS'; titleText = '乘法之神'; color = 'text-amber-500'; descText = '神仙连击手速，超高难度轻松碾压！'; } else if (currentScore >= 4500) { grade = 'S'; titleText = '心算大师'; color = 'text-blue-500'; descText = '行云流水，算力惊人！'; } else if (currentScore >= 3000) { grade = 'A'; titleText = '算术高手'; color = 'text-emerald-500'; descText = '稳扎稳打，实力在线！'; } else if (currentScore >= 1500) { grade = 'B'; titleText = '消除达人'; color = 'text-sky-500'; descText = '有惊无险，成功通关！'; }
+                
+                ribbon.innerText = "巅峰通关"; ribbon.className = `absolute -top-6 px-8 py-2 rounded-full shadow-sm border-2 border-white text-white font-black text-xl tracking-widest whitespace-nowrap bg-amber-400`;
+                icon.innerHTML = `🏆`; title.innerText = "超越了99%的玩家！"; scoreArea.classList.remove('hidden'); document.getElementById('settlement-score').innerText = currentScore; document.getElementById('settlement-time').innerText = document.getElementById('timer').innerText; document.getElementById('settlement-max-combo').innerText = `x${maxComboReached}`;
+                gradeEl.innerText = `评级：${grade} ${titleText}`; gradeEl.className = `text-xl font-bold mb-2 ${color}`; gradeEl.classList.remove('hidden'); 
+                
+                if (hardestEq && maxTime > 2000) { descText += `<br><span class="text-rose-500 mt-3 block bg-rose-50 p-2 rounded-lg border border-rose-100">【易错点拨】你在 <b>${hardestEq}</b> 上思考了最久，记得复习哦！</span>`; }
+                desc.innerHTML = descText;
+
+                btn.innerText = "再玩一次"; btn.className = "w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black text-xl shadow-sm active:scale-95 transition-all mt-2"; btn.onclick = () => initGame(true, 1);
+            } else {
+                ribbon.innerText = "遗憾败北"; ribbon.className = `absolute -top-6 px-8 py-2 rounded-full shadow-sm border-2 border-white text-white font-black text-xl tracking-widest whitespace-nowrap bg-slate-500`;
+                icon.innerHTML = `🫠`; title.innerText = "卡槽已满"; scoreArea.classList.add('hidden'); gradeEl.classList.add('hidden');
+                let stuckNumbers = [...new Set(slot.map(c => c.value))]; let stuckStr = stuckNumbers.slice(0, 3).join('、');
+                let descText = `<span class='text-slate-600 text-base'>卡槽满了哦！<br>残留了 <b>${stuckStr}</b>，注意规划抓牌顺序！<br><span class="text-emerald-600 text-xs mt-1 block">💡 提示：如果收集了小道具，卡死前记得使用！</span></span>`;
+                
+                if (hardestEq && maxTime > 2000) { descText += `<span class="text-rose-500 mt-3 block bg-rose-50 p-2 rounded-lg border border-rose-100 text-sm">【易错点拨】你在 <b>${hardestEq}</b> 上思考了最久，不要灰心！</span>`; }
+                desc.innerHTML = descText;
+
+                btn.innerText = "再试一次"; btn.className = "w-full py-4 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl font-black text-xl shadow-sm active:scale-95 transition-all mt-4"; btn.onclick = () => initGame(true, 1);
+            }
+        }
+
+        function toggleBook(show) {
+            const book = document.getElementById('book-modal');
+            if (show) { renderBookContent(); book.classList.remove('hidden'); setTimeout(() => book.classList.remove('translate-y-full'), 10); } 
+            else { book.classList.add('translate-y-full'); setTimeout(() => book.classList.add('hidden'), 300); }
+        }
+
+        function renderBookContent() {
+            const content = document.getElementById('book-content');
+            let html = `
+                <div class="bg-emerald-50 text-emerald-800 p-4 rounded-2xl text-sm mb-6 font-medium border border-emerald-100 flex items-start space-x-2">
+                    <span>💡</span><span>提示：在游戏中成功消除卡牌，即可解锁对应的图鉴！</span>
+                </div>
+            `;
+            
+            html += `<div><h3 class="font-black text-[#2c3e50] mb-4 text-lg">典藏道具</h3><div class="flex space-x-4">`;
+            ['万能', '洗牌'].forEach(tool => {
+                const isUnlocked = unlockedCards.has(tool);
+                const activeClass = isUnlocked ? `tier-SSS` : `bg-[#f8fafc] border border-slate-100 rounded-[14px] shadow-none opacity-40 grayscale`;
+                html += `
+                <div class="flex flex-col items-center">
+                    <div class="w-[18vw] max-w-[70px] aspect-square flex flex-col items-center justify-center mb-2 tile-base ${activeClass}">
+                        <div class="w-8 h-8 z-10 relative num-base">${tool === '万能' ? iconSparkles : iconShuffle}</div>
+                    </div>
+                    <span class="text-sm font-black text-[#7f8c8d]">${tool}卡</span>
+                </div>`;
+            });
+            html += `</div></div>`;
+
+            const tiers = [
+                { id: 'SS', title: 'SS级 暖阳绿 (核心合数)', desc: '既能作因数又能作乘积，枢纽因数！' },
+                { id: 'S', title: 'S级 湖水碧 (质数与1)', desc: '纯粹底层因数，合成其他数字的根基！' },
+                { id: 'A', title: 'A级 翡翠绿 (高频乘积)', desc: '拥有多种分解方式，牌局润滑剂！' },
+                { id: 'B', title: 'B级 灰苍绿 (常规乘积)', desc: '安静退居背景的常规数字！' },
+                { id: 'C', title: 'C级 幽林暗绿 (平方数)', desc: '必须抽到两张相同的因数才能消除，极易卡手！' }
+            ];
+
+            tiers.forEach(tier => {
+                const nums = UNIQUE_NUMBERS.filter(n => getTier(n) === tier.id);
+                if (nums.length === 0) return;
+                html += `<div class="mt-8"><h3 class="font-black text-[#2c3e50] mb-1 text-lg">${tier.title}</h3>`;
+                html += `<p class="text-xs text-slate-500 mb-4 font-bold">${tier.desc}</p>`;
+                html += `<div class="grid grid-cols-4 gap-3">`;
+                nums.forEach(num => {
+                    const isUnlocked = unlockedCards.has(num);
+                    const activeClass = isUnlocked ? `tier-${tier.id}` : `bg-[#f8fafc] border border-slate-100 rounded-[12px] shadow-none opacity-40 grayscale`;
+                    
+                    html += `<div class="aspect-[3/4] flex flex-col items-center justify-center font-black tile-base ${activeClass}">`;
+                    html += `<span class="num-base text-uniform">${isUnlocked ? num : '?'}</span>`;
+                    html += `</div>`;
+                });
+                html += `</div></div>`;
+            });
+            content.innerHTML = html;
+        }
+
+        initGame(true, 1);
+    </script>
+</body>
+</html>

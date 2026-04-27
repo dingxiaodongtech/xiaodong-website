@@ -1,0 +1,585 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>算式对对碰</title>
+  <!-- 引入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          animation: {
+            'fade-in': 'fade-in 0.3s ease-out forwards',
+            'pop-in': 'pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+            'fade-in-up': 'fade-in-up 0.3s ease-out forwards',
+            'bounce-slow': 'bounce-slow 3s ease-in-out infinite',
+            'wiggle': 'wiggle 1s ease-in-out infinite',
+            'scale-in': 'scale-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+          },
+          keyframes: {
+            'fade-in': { 'from': { opacity: '0' }, 'to': { opacity: '1' } },
+            'pop-in': { '0%': { opacity: '0', transform: 'scale(0.5) rotate(-10deg)' }, '70%': { transform: 'scale(1.1) rotate(5deg)' }, '100%': { opacity: '1', transform: 'scale(1) rotate(0deg)' } },
+            'fade-in-up': { 'from': { opacity: '0', transform: 'translateY(10px)' }, 'to': { opacity: '1', transform: 'translateY(0)' } },
+            'bounce-slow': { '0%, 100%': { transform: 'translateY(-5%)' }, '50%': { transform: 'translateY(5%)' } },
+            'wiggle': { '0%, 100%': { transform: 'rotate(-3deg)' }, '50%': { transform: 'rotate(3deg)' } },
+            'scale-in': { 'from': { opacity: '0', transform: 'scale(0)' }, 'to': { opacity: '1', transform: 'scale(1)' } },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* 3D 卡牌翻转动画所需样式 */
+    .perspective-\[1000px\] { perspective: 1000px; }
+    .transform-3d { transform-style: preserve-3d; }
+    .backface-hidden { backface-visibility: hidden; }
+    .rotate-y-180 { transform: rotateY(180deg); }
+    
+    /* 隐藏滚动条但保持滚动功能 */
+    * { scrollbar-width: none; -ms-overflow-style: none; touch-action: manipulation; }
+    *::-webkit-scrollbar { width: 0; height: 0; display: none; }
+    
+    body { 
+      font-family: 'Nunito', 'Comic Sans MS', 'Chalkboard SE', sans-serif; 
+      margin: 0; 
+      padding: 0; 
+      overflow: hidden; /* 阻止整个页面的默认滚动 */
+      background-color: #e0f2fe;
+    }
+  </style>
+  <!-- 引入 Babel 用于在浏览器中编译 JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <!-- 使用 ES Module 方式加载 React 和组件 -->
+  <script type="text/babel" data-type="module">
+    import React, { useState, useCallback, useRef, useEffect } from 'https://esm.sh/react@18';
+    import { createRoot } from 'https://esm.sh/react-dom@18/client';
+    import { Check, Plus, X, Shuffle, Flame, ArrowLeft, RotateCcw, Clock, Footprints, Eye, Trophy, Sparkles, ArrowRight, Lightbulb, Calculator, Star, Home } from 'https://esm.sh/lucide-react@0.292.0';
+
+    // ==========================================
+    // 1. 游戏数据与配置
+    // ==========================================
+    const allPairs = [
+      { id: 1, exprA: '3 × 4', exprB: '4 × 3', result: 12 },
+      { id: 2, exprA: '2 × 5', exprB: '5 × 2', result: 10 },
+      { id: 3, exprA: '6 × 3', exprB: '3 × 6', result: 18 },
+      { id: 4, exprA: '7 × 2', exprB: '2 × 7', result: 14 },
+      { id: 5, exprA: '8 × 3', exprB: '3 × 8', result: 24 },
+      { id: 6, exprA: '9 × 2', exprB: '2 × 9', result: 18 },
+      { id: 7, exprA: '5 × 4', exprB: '4 × 5', result: 20 },
+      { id: 8, exprA: '6 × 7', exprB: '7 × 6', result: 42 },
+      { id: 9, exprA: '8 × 9', exprB: '9 × 8', result: 72 },
+      { id: 10, exprA: '3 + 8', exprB: '8 + 3', result: 11 },
+      { id: 11, exprA: '6 + 9', exprB: '9 + 6', result: 15 },
+      { id: 12, exprA: '4 + 7', exprB: '7 + 4', result: 11 },
+      { id: 13, exprA: '5 + 6', exprB: '6 + 5', result: 11 },
+      { id: 14, exprA: '12 + 5', exprB: '5 + 12', result: 17 },
+      { id: 15, exprA: '15 + 8', exprB: '8 + 15', result: 23 },
+      { id: 16, exprA: '20 + 14', exprB: '14 + 20', result: 34 },
+    ];
+
+    const difficultyConfigs = {
+      addition: { label: '加法', icon: 'Plus', pairs: 6, cols: 4, description: '6 对卡牌 · 加法交换律' },
+      multiplication: { label: '乘法', icon: 'X', pairs: 6, cols: 4, description: '6 对卡牌 · 乘法交换律' },
+      mixed: { label: '混合', icon: 'Shuffle', pairs: 8, cols: 4, description: '8 对卡牌 · 乘法与加法混合' },
+      hard: { label: '困难', icon: 'Flame', pairs: 12, cols: 4, description: '12 对卡牌 · 终极挑战' },
+    };
+
+    function shuffle(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function generateCards(difficulty) {
+      const config = difficultyConfigs[difficulty];
+      let availablePairs = [...allPairs];
+      if (difficulty === 'addition') {
+        availablePairs = allPairs.filter(p => p.exprA.includes('+'));
+      } else if (difficulty === 'multiplication') {
+        availablePairs = allPairs.filter(p => p.exprA.includes('×'));
+      }
+      const selectedPairs = shuffle(availablePairs).slice(0, config.pairs);
+      const cards = [];
+      selectedPairs.forEach((pair) => {
+        cards.push({ uid: `${pair.id}-a`, pairId: pair.id, expression: pair.exprA, isFlipped: false, isMatched: false });
+        cards.push({ uid: `${pair.id}-b`, pairId: pair.id, expression: pair.exprB, isFlipped: false, isMatched: false });
+      });
+      return shuffle(cards);
+    }
+
+    // ==========================================
+    // 2. 游戏核心逻辑 Hook
+    // ==========================================
+    function useGame() {
+      const [phase, setPhase] = useState('menu');
+      const [difficulty, setDifficulty] = useState('addition');
+      const [cards, setCards] = useState([]);
+      const [moves, setMoves] = useState(0);
+      const [matchedPairs, setMatchedPairs] = useState(0);
+      const [totalPairs, setTotalPairs] = useState(0);
+      const [timer, setTimer] = useState(0);
+      const [isChecking, setIsChecking] = useState(false);
+      const [matchedEquations, setMatchedEquations] = useState([]);
+      const [clearedLevels, setClearedLevels] = useState(0);
+      const [skyEyeCount, setSkyEyeCount] = useState(0);
+      const [isSkyEyeActive, setIsSkyEyeActive] = useState(false);
+      
+      const timerRef = useRef(null);
+
+      useEffect(() => {
+        if (phase === 'playing' && !isSkyEyeActive) {
+          timerRef.current = setInterval(() => {
+            setTimer((t) => t + 1);
+          }, 1000);
+        }
+        return () => {
+          if (timerRef.current) clearInterval(timerRef.current);
+        };
+      }, [phase, isSkyEyeActive]);
+
+      const startGame = useCallback((diff) => {
+        setDifficulty(diff);
+        const newCards = generateCards(diff);
+        setCards(newCards);
+        setMoves(0);
+        setMatchedPairs(0);
+        setTotalPairs(newCards.length / 2);
+        setTimer(0);
+        setIsChecking(false);
+        setMatchedEquations([]);
+        setPhase('playing');
+        setIsSkyEyeActive(false);
+      }, []);
+
+      const goToMenu = useCallback(() => {
+        setPhase('menu');
+        setCards([]);
+        setMoves(0);
+        setMatchedPairs(0);
+        setTimer(0);
+        setMatchedEquations([]);
+        setIsSkyEyeActive(false);
+        if (timerRef.current) clearInterval(timerRef.current);
+      }, []);
+
+      const useSkyEye = useCallback(() => {
+        if (skyEyeCount > 0 && !isSkyEyeActive && phase === 'playing') {
+          setSkyEyeCount(prev => prev - 1);
+          setIsSkyEyeActive(true);
+          setTimeout(() => {
+            setIsSkyEyeActive(false);
+          }, 3000);
+        }
+      }, [skyEyeCount, isSkyEyeActive, phase]);
+
+      const flipCard = useCallback((uid) => {
+        if (isChecking || isSkyEyeActive) return;
+        setCards((prevCards) => {
+          const flippedUnmatched = prevCards.filter((c) => c.isFlipped && !c.isMatched);
+          if (flippedUnmatched.length >= 2) return prevCards;
+          const cardIndex = prevCards.findIndex((c) => c.uid === uid);
+          if (cardIndex === -1) return prevCards;
+          const card = prevCards[cardIndex];
+          if (card.isFlipped || card.isMatched) return prevCards;
+          return prevCards.map((c) => c.uid === uid ? { ...c, isFlipped: true } : c);
+        });
+      }, [isChecking, isSkyEyeActive]);
+
+      useEffect(() => {
+        const flippedUnmatched = cards.filter((c) => c.isFlipped && !c.isMatched);
+        if (flippedUnmatched.length === 2 && !isChecking) {
+          setIsChecking(true);
+          setMoves((m) => m + 1);
+          const [first, second] = flippedUnmatched;
+          const isMatch = first.pairId === second.pairId;
+
+          if (isMatch) {
+            const eq = `${first.expression} = ${second.expression}`;
+            setMatchedEquations((prev) => [...prev, eq]); // 改为追加到末尾，让云图自然生长
+            setCards((prevCards) =>
+              prevCards.map((c) => c.uid === first.uid || c.uid === second.uid ? { ...c, isMatched: true } : c)
+            );
+            setMatchedPairs((prev) => {
+              const newMp = prev + 1;
+              if (newMp >= totalPairs && totalPairs > 0) {
+                setTimeout(() => {
+                  if (timerRef.current) clearInterval(timerRef.current);
+                  setPhase('victory');
+                  setClearedLevels(cl => {
+                    const newCl = cl + 1;
+                    if (newCl % 3 === 0) {
+                      setSkyEyeCount(sc => sc + 1);
+                    }
+                    return newCl;
+                  });
+                }, 600);
+              }
+              return newMp;
+            });
+            setIsChecking(false);
+          } else {
+            setTimeout(() => {
+              setCards((prevCards) =>
+                prevCards.map((c) => c.uid === first.uid || c.uid === second.uid ? { ...c, isFlipped: false } : c)
+              );
+              setIsChecking(false);
+            }, 800);
+          }
+        }
+      }, [cards, isChecking, totalPairs]);
+
+      const restart = useCallback(() => {
+        startGame(difficulty);
+      }, [difficulty, startGame]);
+
+      return { phase, difficulty, cards, moves, matchedPairs, totalPairs, timer, isChecking, matchedEquations, clearedLevels, skyEyeCount, isSkyEyeActive, startGame, goToMenu, flipCard, restart, useSkyEye };
+    }
+
+    // ==========================================
+    // 3. 卡牌组件
+    // ==========================================
+    const Card = ({ card, isSkyEyeActive, onClick }) => {
+      const isRevealed = card.isFlipped || card.isMatched || isSkyEyeActive;
+      return (
+        <div className="relative w-full aspect-[4/3] perspective-[1000px] cursor-pointer group" onClick={onClick}>
+          <div className={`w-full h-full transition-transform duration-500 transform-3d ${isRevealed ? 'rotate-y-180' : ''}`}>
+            <div className="absolute w-full h-full backface-hidden">
+              <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-purple-500 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-white border-b-[4px] sm:border-b-[6px] flex items-center justify-center shadow-sm transition-all active:translate-y-1 active:border-b-[2px]">
+                <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-white/20 flex items-center justify-center text-white text-xl sm:text-3xl font-black shadow-inner">
+                  ?
+                </div>
+              </div>
+            </div>
+            <div className="absolute w-full h-full backface-hidden rotate-y-180">
+              <div className={`w-full h-full rounded-xl sm:rounded-2xl border-2 sm:border-4 border-b-[4px] sm:border-b-[6px] flex items-center justify-center p-1 sm:p-2 transition-all duration-300 ${card.isMatched ? 'bg-gradient-to-br from-teal-300 to-teal-400 border-white text-white shadow-teal-300/50' : 'bg-white border-blue-100 text-blue-600 shadow-blue-200/50'}`}>
+                <span className="text-sm sm:text-xl md:text-2xl font-black tracking-tighter drop-shadow-sm whitespace-nowrap">
+                  {card.expression}
+                </span>
+                {card.isMatched && (
+                  <div className="absolute -top-2 -right-2 w-5 h-5 sm:w-8 sm:h-8 bg-yellow-400 rounded-full flex items-center justify-center text-white shadow-md animate-bounce border-2 border-white">
+                    <Check size={14} strokeWidth={4} />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ==========================================
+    // 4. 游戏主界面组件 (高度自适应，不滚动)
+    // ==========================================
+    const gameBoardIconMap = {
+      Plus: <Plus size={16} strokeWidth={3} className="sm:w-5 sm:h-5" />,
+      X: <X size={16} strokeWidth={3} className="sm:w-5 sm:h-5" />,
+      Shuffle: <Shuffle size={16} strokeWidth={3} className="sm:w-5 sm:h-5" />,
+      Flame: <Flame size={16} strokeWidth={3} className="sm:w-5 sm:h-5" />,
+    };
+
+    const GameBoard = ({ gameState, onFlip, onRestart, onMenu, onUseSkyEye }) => {
+      const { difficulty, cards, moves, matchedPairs, totalPairs, timer, matchedEquations, skyEyeCount, isSkyEyeActive } = gameState;
+      const config = difficultyConfigs[difficulty];
+      const progress = totalPairs === 0 ? 0 : (matchedPairs / totalPairs) * 100;
+
+      const formatTime = (seconds) => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}:${s.toString().padStart(2, '0')}`;
+      };
+
+      return (
+        <div className="h-[100dvh] w-full bg-gradient-to-b from-sky-100 to-indigo-100 flex flex-col items-center p-2 sm:p-4 font-sans overflow-hidden">
+          {/* 顶部控制栏 */}
+          <header className="w-full max-w-5xl flex flex-col gap-1.5 sm:gap-3 mb-2 flex-shrink-0">
+            <div className="flex justify-between items-center w-full">
+              <button onClick={onMenu} className="bg-white text-indigo-500 font-black px-3 py-1.5 sm:px-4 sm:py-2 rounded-full border-2 border-indigo-200 border-b-[3px] sm:border-b-[4px] active:border-b-[2px] active:translate-y-[2px] transition-all text-xs sm:text-base flex items-center gap-1 sm:gap-2">
+                <ArrowLeft size={16} strokeWidth={3} className="sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">返回</span>
+              </button>
+              <div className="bg-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-full border-2 border-indigo-200 border-b-[3px] sm:border-b-[4px] font-black text-indigo-600 flex items-center gap-1 sm:gap-2 text-xs sm:text-base">
+                {gameBoardIconMap[config.icon]}
+                {config.label}
+              </div>
+              <button onClick={onRestart} className="bg-rose-400 text-white font-black px-3 py-1.5 sm:px-4 sm:py-2 rounded-full border-2 border-rose-500 border-b-[3px] sm:border-b-[4px] active:border-b-[2px] active:translate-y-[2px] transition-all text-xs sm:text-base flex items-center gap-1 sm:gap-2">
+                <RotateCcw size={16} strokeWidth={3} className="sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">重玩</span>
+              </button>
+            </div>
+            
+            {/* 统计信息栏 */}
+            <div className="flex justify-center gap-2 sm:gap-4 w-full">
+              <div className="bg-white/80 backdrop-blur px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl border-2 border-white font-black text-slate-600 flex items-center gap-1 sm:gap-2 shadow-sm flex-1 min-w-[80px] justify-center">
+                <Clock className="text-blue-500 w-4 h-4 sm:w-6 sm:h-6" strokeWidth={3} />
+                <span className="text-sm sm:text-lg">{formatTime(timer)}</span>
+              </div>
+              <div className="bg-white/80 backdrop-blur px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl border-2 border-white font-black text-slate-600 flex items-center gap-1 sm:gap-2 shadow-sm flex-1 min-w-[80px] justify-center">
+                <Footprints className="text-orange-500 w-4 h-4 sm:w-6 sm:h-6" strokeWidth={3} />
+                <span className="text-sm sm:text-lg">{moves} 步</span>
+              </div>
+              <button onClick={onUseSkyEye} disabled={skyEyeCount === 0 || isSkyEyeActive} className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl border-2 font-black flex items-center gap-1 sm:gap-2 shadow-sm flex-1 min-w-[80px] justify-center transition-all ${skyEyeCount > 0 && !isSkyEyeActive ? 'bg-indigo-100 border-indigo-300 text-indigo-600 border-b-[3px] sm:border-b-[4px] active:border-b-[2px] active:translate-y-[2px] cursor-pointer' : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'}`}>
+                <Eye className={`w-4 h-4 sm:w-6 sm:h-6 ${isSkyEyeActive ? 'animate-pulse text-indigo-500' : ''}`} strokeWidth={3} />
+                <span className="text-sm sm:text-lg">{skyEyeCount}</span>
+              </button>
+            </div>
+          </header>
+
+          {/* 进度条 */}
+          <div className="w-full max-w-5xl mb-2 sm:mb-4 flex-shrink-0">
+            <div className="flex justify-between text-xs sm:text-sm font-black text-indigo-800 mb-1 px-2">
+              <span className="flex items-center gap-1"><Trophy size={14} className="text-amber-500 sm:w-5 sm:h-5" strokeWidth={3} /> 收集进度</span>
+              <span>{matchedPairs} / {totalPairs}</span>
+            </div>
+            <div className="h-3 sm:h-6 w-full bg-white/50 rounded-full overflow-hidden border-2 sm:border-4 border-white shadow-inner p-0.5 sm:p-1">
+              <div className="h-full bg-gradient-to-r from-teal-400 to-teal-500 rounded-full transition-all duration-500 ease-out relative" style={{ width: `${progress}%` }}>
+                <div className="absolute inset-0 bg-white/20 w-full h-1/2 rounded-t-full"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* 主体区域：卡牌网格 + 战利品 */}
+          <div className="w-full max-w-5xl flex-1 flex flex-col lg:flex-row gap-2 sm:gap-4 min-h-0 pb-2">
+            
+            {/* 卡牌网格区域 (自适应剩余空间) */}
+            <div className="flex-1 flex items-center justify-center min-h-0 w-full">
+              <div className="grid gap-1.5 sm:gap-3 w-full max-w-3xl max-h-full p-1" style={{ gridTemplateColumns: `repeat(${config.cols}, minmax(0, 1fr))` }}>
+                {cards.map((card) => (
+                  <Card key={card.uid} card={card} isSkyEyeActive={isSkyEyeActive} onClick={() => onFlip(card.uid)} />
+                ))}
+              </div>
+            </div>
+
+            {/* 战利品区域 (云图效果，固定大小不滚动) */}
+            <div className="w-full h-[110px] sm:h-[140px] lg:h-full lg:w-80 bg-white rounded-2xl sm:rounded-[2rem] border-2 sm:border-4 border-indigo-100 border-b-[4px] sm:border-b-[8px] p-2 sm:p-4 flex flex-col flex-shrink-0 shadow-md relative overflow-hidden">
+              <h3 className="text-sm sm:text-xl font-black text-indigo-800 mb-1 lg:mb-4 flex items-center justify-center gap-1 sm:gap-2 flex-shrink-0 z-10">
+                <Sparkles className="text-amber-400 w-4 h-4 sm:w-6 sm:h-6" strokeWidth={3} /> 战利品
+              </h3>
+              
+              {/* 云图容器：使用 absolute 填满剩余空间，flex-wrap 自动换行居中 */}
+              <div className="flex-1 w-full relative">
+                <div className="absolute inset-0 flex flex-wrap justify-center content-center gap-1 sm:gap-2 p-1">
+                  {matchedEquations.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center text-indigo-300 text-center space-y-1 sm:space-y-2">
+                      <Eye size={24} className="opacity-50 animate-pulse sm:w-12 sm:h-12" strokeWidth={1.5} />
+                      <p className="font-black text-xs sm:text-sm whitespace-nowrap">快去翻牌吧！</p>
+                    </div>
+                  ) : (
+                    matchedEquations.map((eq, index) => {
+                      const total = matchedEquations.length;
+                      
+                      // 核心算法：算式越多，整体基础缩放比例越小 (最少缩放到 0.45)
+                      const sizeFactor = Math.max(0.45, 1 - (total * 0.05));
+                      
+                      // 随机大小变化：让每个算式有大有小 (0.8 到 1.2 之间波动)
+                      const randomVariation = 0.8 + ((index * 13) % 5) * 0.1;
+                      const finalFactor = sizeFactor * randomVariation;
+                      
+                      // 随机旋转角度：让算式看起来像随意贴上去的 (-6度 到 +6度)
+                      const rotation = ((index * 17) % 13) - 6;
+
+                      return (
+                        <div key={index} 
+                             className="bg-gradient-to-r from-teal-50 to-teal-100 border-teal-300 rounded-xl text-center animate-pop-in shadow-sm transition-all duration-500 flex items-center justify-center" 
+                             style={{ 
+                               // 动态计算字体大小、内边距和边框粗细
+                               fontSize: `${Math.max(0.6, 1.2 * finalFactor)}rem`,
+                               padding: `${Math.max(0.15, 0.4 * finalFactor)}rem ${Math.max(0.3, 0.8 * finalFactor)}rem`,
+                               borderWidth: `${Math.max(1, 2 * finalFactor)}px`,
+                               borderBottomWidth: `${Math.max(2, 4 * finalFactor)}px`,
+                               transform: `rotate(${rotation}deg)`
+                             }}>
+                          <span className="font-black text-teal-800 tracking-wider drop-shadow-sm whitespace-nowrap leading-none">{eq}</span>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      );
+    };
+
+    // ==========================================
+    // 5. 菜单组件
+    // ==========================================
+    const menuIconMap = {
+      Plus: <Plus size={24} strokeWidth={3} className="sm:w-8 sm:h-8" />,
+      X: <X size={24} strokeWidth={3} className="sm:w-8 sm:h-8" />,
+      Shuffle: <Shuffle size={24} strokeWidth={3} className="sm:w-8 sm:h-8" />,
+      Flame: <Flame size={24} strokeWidth={3} className="sm:w-8 sm:h-8" />,
+    };
+
+    const Menu = ({ onStart }) => {
+      return (
+        <div className="min-h-[100dvh] bg-gradient-to-b from-sky-100 to-indigo-100 flex flex-col items-center justify-center p-3 sm:p-4 font-sans">
+          <div className="w-full max-w-md bg-white rounded-[2rem] sm:rounded-[2.5rem] border-4 border-white border-b-[8px] sm:border-b-[12px] p-5 sm:p-10 text-center shadow-2xl relative overflow-hidden">
+            <div className="absolute -top-10 -left-10 w-40 h-40 bg-yellow-200 rounded-full opacity-50 blur-3xl"></div>
+            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-pink-200 rounded-full opacity-50 blur-3xl"></div>
+            <div className="relative z-10">
+              <div className="mb-6 sm:mb-8 animate-bounce-slow flex flex-col items-center">
+                <div className="w-16 h-16 sm:w-24 sm:h-24 bg-indigo-100 rounded-2xl sm:rounded-3xl flex items-center justify-center mb-3 sm:mb-4 text-indigo-500 shadow-inner border-4 border-white rotate-3">
+                  <Calculator size={32} strokeWidth={2.5} className="sm:w-12 sm:h-12" />
+                </div>
+                <h1 className="text-3xl sm:text-5xl font-black text-indigo-800 tracking-tight mb-2 drop-shadow-sm">算式对对碰</h1>
+                <p className="text-indigo-500 font-black text-sm sm:text-lg bg-indigo-50 inline-block px-3 py-1 rounded-full border-2 border-indigo-100">找出结果相同的算式！</p>
+              </div>
+              <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
+                {Object.entries(difficultyConfigs).map(([key, config]) => (
+                  <button key={key} onClick={() => onStart(key)} className="w-full bg-gradient-to-r from-indigo-400 to-purple-500 text-white rounded-2xl sm:rounded-3xl border-2 sm:border-4 border-white border-b-[4px] sm:border-b-[8px] active:border-b-[2px] sm:active:border-b-[4px] active:translate-y-[2px] sm:active:translate-y-[4px] py-3 px-4 sm:py-4 sm:px-6 flex items-center justify-between group transition-all shadow-md hover:shadow-lg">
+                    <div className="flex items-center gap-3 sm:gap-4">
+                      <span className="bg-white/20 p-2 sm:p-3 rounded-xl sm:rounded-2xl group-hover:scale-110 group-hover:rotate-12 transition-transform shadow-inner text-white">
+                        {menuIconMap[config.icon]}
+                      </span>
+                      <div className="text-left">
+                        <div className="text-xl sm:text-2xl font-black drop-shadow-sm">{config.label}</div>
+                        <div className="text-xs sm:text-sm text-indigo-100 font-bold">{config.description}</div>
+                      </div>
+                    </div>
+                    <span className="opacity-50 group-hover:opacity-100 group-hover:translate-x-2 transition-all text-white">
+                      <ArrowRight size={24} strokeWidth={3} className="sm:w-8 sm:h-8" />
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="bg-sky-50 rounded-2xl sm:rounded-3xl p-4 sm:p-5 border-2 sm:border-4 border-sky-100 text-left relative">
+                <div className="absolute -top-3 -right-3 sm:-top-4 sm:-right-4 text-amber-400 animate-wiggle bg-white rounded-full p-1.5 sm:p-2 shadow-md">
+                  <Sparkles size={20} strokeWidth={3} className="sm:w-6 sm:h-6" />
+                </div>
+                <h3 className="font-black text-sky-800 mb-2 sm:mb-3 flex items-center gap-1.5 sm:gap-2 text-base sm:text-lg">
+                  <Lightbulb size={20} className="text-amber-500 sm:w-6 sm:h-6" strokeWidth={3} /> 怎么玩？
+                </h3>
+                <ul className="text-xs sm:text-base text-sky-700 space-y-2 sm:space-y-3 font-bold">
+                  <li className="flex items-start gap-1.5 sm:gap-2">
+                    <span className="bg-sky-200 text-sky-800 w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-xs sm:text-sm">1</span>
+                    翻开两张卡牌，如果算式结果相等，就能配对成功！
+                  </li>
+                  <li className="flex items-start gap-1.5 sm:gap-2">
+                    <span className="bg-sky-200 text-sky-800 w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-xs sm:text-sm">2</span>
+                    例如：<strong className="text-indigo-800 bg-white px-1.5 py-0.5 rounded-md sm:rounded-lg border border-sky-200 shadow-sm">3 × 4</strong> 和 <strong className="text-indigo-800 bg-white px-1.5 py-0.5 rounded-md sm:rounded-lg border border-sky-200 shadow-sm">4 × 3</strong> 是一对。
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ==========================================
+    // 6. 胜利组件
+    // ==========================================
+    const Victory = ({ gameState, onRestart, onMenu }) => {
+      const { moves, timer, difficulty, totalPairs, clearedLevels } = gameState;
+      const config = difficultyConfigs[difficulty];
+      const minMoves = totalPairs * 2;
+      let stars = 1;
+      if (moves <= minMoves * 1.5) stars = 3;
+      else if (moves <= minMoves * 2) stars = 2;
+
+      const formatTime = (seconds) => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}分${s}秒`;
+      };
+
+      const earnedProp = clearedLevels > 0 && clearedLevels % 3 === 0;
+
+      return (
+        <div className="min-h-[100dvh] bg-gradient-to-b from-sky-100 to-indigo-100 flex flex-col items-center justify-center p-3 sm:p-4 font-sans">
+          <div className="w-full max-w-md bg-white rounded-[2rem] sm:rounded-[2.5rem] border-4 border-white border-b-[8px] sm:border-b-[12px] p-6 sm:p-10 text-center shadow-2xl relative overflow-hidden animate-pop-in">
+            <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+              {[...Array(15)].map((_, i) => (
+                <div key={i} className="absolute text-2xl sm:text-3xl animate-fade-in-up" style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 0.5}s`, opacity: 0.3 }}>
+                  {['✨', '🎉', '🌟', '🎈'][Math.floor(Math.random() * 4)]}
+                </div>
+              ))}
+            </div>
+            <div className="relative z-10">
+              <div className="flex justify-center mb-3 sm:mb-4">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-amber-100 rounded-full flex items-center justify-center text-amber-500 shadow-inner border-4 border-white animate-bounce">
+                  <Trophy size={40} strokeWidth={2.5} className="sm:w-14 sm:h-14" />
+                </div>
+              </div>
+              <h2 className="text-3xl sm:text-5xl font-black text-indigo-800 mb-1 sm:mb-2 drop-shadow-sm">太棒了！</h2>
+              <p className="text-indigo-500 font-black text-sm sm:text-lg mb-6 sm:mb-8 bg-indigo-50 inline-block px-3 py-1 rounded-full border-2 border-indigo-100">
+                你完成了 {config.label} 挑战
+              </p>
+              <div className="flex justify-center gap-2 sm:gap-4 mb-8 sm:mb-10">
+                {[1, 2, 3].map((star) => (
+                  <div key={star} className={`transition-all duration-500 ${star <= stars ? 'text-yellow-400 drop-shadow-xl scale-110 animate-wiggle' : 'text-slate-200 grayscale opacity-50'}`} style={{ animationDelay: `${star * 0.2}s` }}>
+                    <Star size={48} fill={star <= stars ? "currentColor" : "none"} strokeWidth={2} className="sm:w-16 sm:h-16" />
+                  </div>
+                ))}
+              </div>
+              {earnedProp && (
+                <div className="mb-6 sm:mb-8 bg-gradient-to-r from-indigo-100 to-purple-100 border-2 sm:border-4 border-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 flex items-center justify-center gap-2 sm:gap-3 animate-fade-in-up shadow-md">
+                  <div className="bg-white p-2 sm:p-3 rounded-xl sm:rounded-2xl shadow-sm text-indigo-500">
+                    <Eye size={24} strokeWidth={3} className="sm:w-8 sm:h-8" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-base sm:text-lg font-black text-indigo-800">获得道具：天眼</div>
+                    <div className="text-xs sm:text-sm text-indigo-600 font-bold">连续通关3次奖励，可透视所有卡牌</div>
+                  </div>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-8 sm:mb-10">
+                <div className="bg-gradient-to-br from-blue-50 to-sky-100 rounded-2xl sm:rounded-3xl p-3 sm:p-4 border-2 sm:border-4 border-white shadow-md flex flex-col items-center">
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-blue-500 text-xs sm:text-base font-black mb-1">
+                    <Footprints size={16} strokeWidth={3} className="sm:w-5 sm:h-5" /> 总步数
+                  </div>
+                  <div className="text-2xl sm:text-4xl font-black text-blue-700 drop-shadow-sm">{moves}</div>
+                </div>
+                <div className="bg-gradient-to-br from-orange-50 to-amber-100 rounded-2xl sm:rounded-3xl p-3 sm:p-4 border-2 sm:border-4 border-white shadow-md flex flex-col items-center">
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-orange-500 text-xs sm:text-base font-black mb-1">
+                    <Clock size={16} strokeWidth={3} className="sm:w-5 sm:h-5" /> 用时
+                  </div>
+                  <div className="text-xl sm:text-3xl font-black text-orange-700 mt-1 drop-shadow-sm">{formatTime(timer)}</div>
+                </div>
+              </div>
+              <div className="space-y-3 sm:space-y-4">
+                <button onClick={onRestart} className="w-full bg-gradient-to-r from-teal-400 to-teal-500 text-white font-black rounded-full border-2 sm:border-4 border-white border-b-[4px] sm:border-b-[8px] active:border-b-[2px] sm:active:border-b-[4px] active:translate-y-[2px] sm:active:translate-y-[4px] py-3 sm:py-4 text-lg sm:text-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 sm:gap-3">
+                  <RotateCcw size={20} strokeWidth={3} className="sm:w-6 sm:h-6" />
+                  再玩一次
+                </button>
+                <button onClick={onMenu} className="w-full bg-white text-indigo-500 font-black rounded-full border-2 sm:border-4 border-indigo-100 border-b-[4px] sm:border-b-[8px] active:border-b-[2px] sm:active:border-b-[4px] active:translate-y-[2px] sm:active:translate-y-[4px] py-3 sm:py-4 text-lg sm:text-xl transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 sm:gap-3">
+                  <Home size={20} strokeWidth={3} className="sm:w-6 sm:h-6" />
+                  返回主菜单
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ==========================================
+    // 7. 根组件
+    // ==========================================
+    function App() {
+      const game = useGame();
+      if (game.phase === 'menu') return <Menu onStart={game.startGame} />;
+      if (game.phase === 'victory') return <Victory gameState={game} onRestart={game.restart} onMenu={game.goToMenu} />;
+      return <GameBoard gameState={game} onFlip={game.flipCard} onRestart={game.restart} onMenu={game.goToMenu} onUseSkyEye={game.useSkyEye} />;
+    }
+
+    // ==========================================
+    // 8. 挂载应用
+    // ==========================================
+    const root = createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

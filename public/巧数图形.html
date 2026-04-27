@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>魔法几何学院 - 完美运行版</title>
+    <style>
+        :root { --magic: #8b5cf6; --gold: #facc15; --bg: #0f172a; --text: #f8fafc; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
+        
+        /* 1. 舞台容器 */
+        #game-stage { 
+            width: 920px; height: 720px; background: #1e293b; 
+            border: 4px solid var(--magic); border-radius: 30px; 
+            position: relative; padding: 20px; display: flex; flex-direction: column; 
+            box-shadow: 0 0 50px rgba(139,92,246,0.3); user-select: none;
+        }
+
+        /* 2. 顶部引导 */
+        #guide-box { height: 80px; text-align: center; z-index: 10; }
+        #dialogue { font-size: 1.4rem; color: var(--gold); margin-bottom: 5px; min-height: 40px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        #energy-bar { width: 100%; height: 10px; background: #334155; border-radius: 6px; overflow: hidden; }
+        #energy-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #8b5cf6, #d946ef); transition: width 0.5s ease-out; }
+
+        /* 3. 核心画布 */
+        #canvas-container { 
+            flex-grow: 1; position: relative; 
+            display: flex; justify-content: center; align-items: center; 
+            background: rgba(0,0,0,0.2); border-radius: 20px; 
+            margin: 10px 0; overflow: hidden; z-index: 5;
+        }
+        canvas { border-radius: 15px; cursor: crosshair; }
+
+        /* 4. 悬浮清单 */
+        #combo-list { 
+            position: absolute; right: 20px; top: 20px; 
+            background: rgba(15, 23, 42, 0.9); padding: 20px; 
+            border-radius: 15px; font-size: 1rem; line-height: 1.8; 
+            color: var(--gold); border: 2px solid var(--magic); 
+            min-width: 180px; pointer-events: none; transition: opacity 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 20;
+        }
+
+        /* 5. 演示小手 */
+        #hand-pointer { position: absolute; font-size: 50px; z-index: 100; pointer-events: none; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5)); transition: opacity 0.2s; }
+
+        /* 6. 拨数器 (底部居中，不挡画布) */
+        #dial-interaction {
+            position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.95); padding: 10px 30px; border-radius: 50px;
+            border: 2px solid var(--gold); text-align: center; z-index: 50;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.6); display: flex; align-items: center; gap: 20px;
+        }
+        .dial-container { display: flex; align-items: center; gap: 15px; }
+        #dial-num { font-size: 2.5rem; color: var(--gold); font-weight: bold; width: 50px; }
+        .dial-btn { background: var(--magic); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.5rem; }
+
+        /* 7. 数字卡片池 (关键修复：pointer-events穿透，防止遮挡下方) */
+        #number-pool {
+            position: absolute; bottom: 150px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 20px; z-index: 60;
+            pointer-events: none; /* 让容器不挡鼠标 */
+        }
+        .num-card {
+            width: 60px; height: 80px; background: linear-gradient(135deg, #fb923c, #ea580c);
+            border: 2px solid #fff; border-radius: 12px; color: white;
+            font-size: 2.2rem; font-weight: bold; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            pointer-events: auto; /* 让卡片本身可点击 */
+        }
+        .num-card:hover { transform: translateY(-10px) scale(1.1); box-shadow: 0 8px 20px rgba(251, 146, 60, 0.6); }
+        .num-card.used { opacity: 0; pointer-events: none; transform: scale(0.5); }
+
+        /* 8. 公式区 (关键修复：z-index最高，确保等号可点) */
+        #formula-bar { 
+            height: 90px; font-size: 2.8rem; text-align: center; 
+            color: var(--gold); font-weight: bold; 
+            display: flex; align-items: center; justify-content: center; 
+            font-family: 'Courier New', monospace; 
+            position: relative; z-index: 200; /* 最高层级 */
+            text-shadow: 0 2px 4px black; margin-top: auto;
+        }
+        
+        #control-panel { height: 70px; display: flex; justify-content: center; z-index: 200; position: relative; }
+        
+        .magic-btn { background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; border: none; padding: 12px 45px; border-radius: 50px; font-size: 1.2rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4); }
+        .hidden { display: none !important; }
+        
+        #modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 300; }
+        .modal { background: #1e293b; border: 3px solid var(--gold); padding: 40px; border-radius: 25px; text-align: center; max-width: 500px; }
+        .modal button { margin: 15px; padding: 10px 25px; font-size: 1.1rem; cursor: pointer; }
+
+        /* 动画 */
+        .pulse-equal { 
+            display: inline-block; animation: pulse 1s infinite; cursor: pointer; 
+            padding: 5px 20px; border-radius: 15px; background: rgba(250, 204, 21, 0.2); border: 2px solid var(--gold);
+        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); box-shadow: 0 0 25px var(--gold); color: #fff; background: var(--magic); } 100% { transform: scale(1); } }
+        
+        .show-res { animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: inline-block; color: #4ade80; }
+        @keyframes popIn { from { opacity: 0; transform: scale(0) rotate(-180deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+    </style>
+</head>
+<body>
+
+<div id="game-stage">
+    <div id="guide-box">
+        <div id="dialogue">正在加载魔法能量...</div>
+        <div id="energy-bar"><div id="energy-fill"></div></div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="magicCanvas" width="800" height="400"></canvas>
+        <div id="combo-list" class="hidden"></div>
+        <div id="hand-pointer" class="hidden">👆</div>
+    </div>
+
+    <div id="dial-interaction" class="hidden">
+        <div style="font-size: 1.2rem; color: #fff;">观察图形，确定咒语起点：</div>
+        <div class="dial-container">
+            <button class="dial-btn" onclick="manager.changeDial(-1)">-</button>
+            <div id="dial-num">0</div>
+            <button class="dial-btn" onclick="manager.changeDial(1)">+</button>
+        </div>
+        <button class="magic-btn btn-small" onclick="manager.confirmDial()">确认</button>
+    </div>
+
+    <div id="number-pool" class="hidden"></div>
+
+    <div id="formula-bar"></div>
+    
+    <div id="control-panel">
+        <button id="main-btn" class="magic-btn hidden" onclick="manager.nextStep()">开启下一步魔法</button>
+    </div>
+
+    <div id="modal-overlay" class="hidden">
+        <div class="modal">
+            <h3 style="color:var(--gold); margin-top:0;">🌟 魔法师的思考</h3>
+            <p id="modal-text" style="font-size:1.3rem; line-height:1.6; color: #fff;"></p>
+            <div id="modal-btns"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('magicCanvas');
+const ctx = canvas.getContext('2d');
+const dialogue = document.getElementById('dialogue');
+const formulaBar = document.getElementById('formula-bar');
+const energyFill = document.getElementById('energy-fill');
+
+const manager = {
+    stage: 0, rectCount: 0, 
+    foundCombos: [], // 划线模式已找到的
+    visibleGroups: [1], // 卡片模式已显示的长度
+    isDragging: false, dragStart: 0, dialVal: 0,
+    colors: ["#8b5cf6", "#fb923c", "#10b981", "#facc15", "#ec4899", "#06b6d4"],
+    circles: ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩"],
+
+    getConfig() {
+        const w = 70, h = 80;
+        return { w, h, startX: (canvas.width - this.rectCount * w) / 2, startY: 160 };
+    },
+
+    // ================= 核心绘图逻辑 =================
+
+    drawCurrentStage() {
+        if (this.stage <= 5 || this.stage === 8) this.drawBaseRects();
+        else if (this.stage === 6) this.drawLineStage();
+        else if (this.stage === 7) this.drawTriangleStage();
+    },
+
+    // 1. 长方形 (方框)
+    drawBaseRects() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const { w, h, startX, startY } = this.getConfig();
+        for (let i = 0; i < this.rectCount; i++) {
+            ctx.strokeStyle = "rgba(139, 92, 246, 0.4)";
+            ctx.setLineDash([5, 5]); ctx.lineWidth = 2;
+            ctx.strokeRect(startX + i * w, startY, w, h);
+            ctx.fillStyle = "white"; ctx.font = "bold 20px Arial"; ctx.textAlign = "center";
+            ctx.fillText(this.circles[i] || (i + 1), startX + i * w + w/2, startY + h/2 + 8);
+        }
+        ctx.setLineDash([]);
+        // 自动展示或手动展示
+        if (this.stage >= 6 && this.stage !== 8) this.drawAutoCombos(); 
+        else this.foundCombos.forEach(c => this.drawBox(c));
+    },
+
+    // 2. 线段 (彩虹桥弧线)
+    drawLineStage() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const { startX, startY } = this.getConfig();
+        const y = startY + 50; 
+        
+        // 底层红线
+        ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 6; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(startX + this.rectCount * 70, y); ctx.stroke();
+        
+        // 节点
+        for(let i=0; i<=this.rectCount; i++){
+            ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(startX + i * 70, y, 6, 0, Math.PI*2); ctx.fill();
+        }
+        this.drawAutoCombos();
+    },
+
+    // 3. 三角形 (高亮轮廓与填充)
+    drawTriangleStage() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const { startX, startY } = this.getConfig();
+        const apexX = startX + (this.rectCount * 70) / 2;
+        const baseY = startY + 80;
+        const apexY = startY - 100;
+        
+        // 骨架
+        ctx.strokeStyle = "#3b82f6"; ctx.lineWidth = 2;
+        for(let i=0; i<=this.rectCount; i++){
+            ctx.beginPath(); ctx.moveTo(apexX, apexY); ctx.lineTo(startX + i * 70, baseY); ctx.stroke();
+        }
+        ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 5; 
+        ctx.beginPath(); ctx.moveTo(startX, baseY); ctx.lineTo(startX + this.rectCount * 70, baseY); ctx.stroke();
+        
+        this.drawAutoCombos(apexY, baseY, apexX); 
+    },
+
+    // 自动展示分发器
+    drawAutoCombos(p1, p2, p3) {
+        this.visibleGroups.forEach(len => {
+            if (len === 1) return;
+            const maxStartIdx = this.rectCount - len;
+            for (let s = 0; s <= maxStartIdx; s++) {
+                const c = { sIdx: s, eIdx: s + len - 1, len: len, color: this.colors[len - 1] };
+                if (this.stage === 6) this.drawArc(c);
+                else if (this.stage === 7) this.drawTriangleShape(c, p1, p2, p3);
+                else this.drawBox(c);
+            }
+        });
+    },
+
+    // 图形A：方框
+    drawBox(c) {
+        const { w, h, startX, startY } = this.getConfig();
+        const offset = (c.len - 1) * 8;
+        ctx.strokeStyle = c.color; ctx.lineWidth = 4;
+        const x = startX + c.sIdx * w + 5 - offset;
+        const y = startY - offset;
+        ctx.strokeRect(x, y, c.len * w - 10 + offset * 2, h + offset * 2);
+    },
+
+    // 图形B：弧线 (线段用)
+    drawArc(c) {
+        const { startX, startY } = this.getConfig();
+        const y = startY + 50;
+        const x1 = startX + c.sIdx * 70;
+        const x2 = startX + (c.eIdx + 1) * 70;
+        const midX = (x1 + x2) / 2;
+        const hOffset = 50 + (c.len - 1) * 35; 
+
+        ctx.strokeStyle = c.color; ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(x1, y);
+        ctx.quadraticCurveTo(midX, y - hOffset, x2, y);
+        ctx.stroke();
+        
+        ctx.fillStyle = c.color;
+        [x1, x2].forEach(px => { ctx.beginPath(); ctx.arc(px, y, 5, 0, Math.PI*2); ctx.fill(); });
+    },
+
+    // 图形C：三角形填充
+    drawTriangleShape(c, apexY, baseY, apexX) {
+        const { startX } = this.getConfig();
+        const x1 = startX + c.sIdx * 70;
+        const x2 = startX + (c.eIdx + 1) * 70;
+        
+        ctx.fillStyle = c.color + "44"; // 半透明填充
+        ctx.strokeStyle = c.color; ctx.lineWidth = 5; ctx.lineJoin = "round";
+        
+        ctx.beginPath();
+        ctx.moveTo(apexX, apexY);
+        ctx.lineTo(x2, baseY);
+        ctx.lineTo(x1, baseY);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+    },
+
+    // ================= 交互逻辑 =================
+
+    // 1. 划线交互初始化
+    initDragInteraction() {
+        canvas.onmousedown = (e) => { this.isDragging = true; this.dragStart = e.offsetX; this.showHandDemo(false); };
+        canvas.onmousemove = (e) => {
+            if (!this.isDragging) return;
+            this.drawCurrentStage();
+            const { startY, h } = this.getConfig();
+            ctx.fillStyle = "rgba(250, 215, 0, 0.2)";
+            ctx.fillRect(this.dragStart, startY, e.offsetX - this.dragStart, h);
+        };
+        canvas.onmouseup = (e) => {
+            if (!this.isDragging) return;
+            this.isDragging = false;
+            this.identify(this.dragStart, e.offsetX);
+        };
+    },
+
+    // 2. 划线识别
+    identify(x1, x2) {
+        const { w, startX } = this.getConfig();
+        const sIdx = Math.floor((Math.min(x1, x2) - startX) / w);
+        const eIdx = Math.floor((Math.max(x1, x2) - startX) / w);
+        const len = eIdx - sIdx + 1;
+        if (sIdx < 0 || eIdx >= this.rectCount || len <= 1) { this.drawCurrentStage(); return; }
+        
+        if (this.stage === 8) { dialogue.innerHTML = "小白：<span style='color:#ef4444'>哎呀！</span>长宽不等，不是正方形！"; this.drawCurrentStage(); return; }
+
+        const key = `${sIdx}-${eIdx}`;
+        if (!this.foundCombos.find(c => `${c.sIdx}-${c.eIdx}` === key)) {
+            this.foundCombos.push({ sIdx, eIdx, len, color: this.colors[len - 1] });
+            this.updateComboList(); this.updateLogic();
+        }
+        this.drawCurrentStage();
+    },
+
+    // 3. 卡片交互初始化
+    initCardInteraction() {
+        canvas.onmousedown = null; canvas.onmousemove = null;
+        const pool = document.getElementById('number-pool');
+        pool.classList.remove('hidden');
+        pool.innerHTML = "";
+        
+        for(let i = this.rectCount - 1; i >= 1; i--) {
+            const card = document.createElement('div');
+            card.className = 'num-card'; card.innerText = i;
+            card.onclick = () => this.selectCard(i, card);
+            pool.appendChild(card);
+        }
+    },
+
+    // 4. 选择卡片
+    selectCard(num, cardEl) {
+        const targetLen = this.rectCount - num + 1;
+        if (this.visibleGroups.includes(targetLen)) return;
+
+        cardEl.classList.add('used');
+        this.visibleGroups.push(targetLen);
+        
+        const slot = document.getElementById(`f${targetLen}`);
+        if(slot) { slot.innerText = num; slot.style.opacity = "1"; slot.style.color = this.colors[targetLen-1]; }
+
+        this.updateComboList(true); 
+        this.drawCurrentStage();
+
+        dialogue.innerHTML = `小白：没错！${num}个【${targetLen}个拼的】组合被你发现了！`;
+
+        if (this.visibleGroups.length === this.rectCount) {
+             const eq = document.getElementById('eq');
+             if(eq) eq.classList.add('pulse-equal');
+             dialogue.innerHTML = "小白：<span style='color:var(--gold)'>全找齐了！快点击等号！</span>";
+        }
+    },
+
+    // ================= 拨数器 =================
+
+    changeDial(v) { 
+        this.dialVal = Math.max(0, this.dialVal + v); 
+        document.getElementById('dial-num').innerText = this.dialVal; 
+    },
+
+    confirmDial() {
+        if(this.dialVal === 5) {
+            document.getElementById('dial-interaction').classList.add('hidden');
+            this.showFormula();
+            
+            if (this.stage === 5) {
+                this.initDragInteraction(); 
+                dialogue.innerHTML = "小白：起点确认！现在手动划出隐藏的长方形吧！";
+            } else {
+                this.initCardInteraction(); 
+                dialogue.innerHTML = "小白：起点确认！点击上方数字卡片，找出规律！";
+            }
+            this.updateComboList(this.stage >= 6);
+        } else {
+            dialogue.innerHTML = "小白：再数数最底层的基本图形有几个？";
+        }
+    },
+
+    // ================= UI 更新 =================
+
+    // 顿号修复 + 自动/手动模式兼容
+    updateComboList(isAutoMode = false) {
+        const listEl = document.getElementById('combo-list');
+        if (formulaBar.innerHTML === "") { listEl.classList.add('hidden'); return; }
+        listEl.classList.remove('hidden');
+
+        let groups = { 1: [] };
+        for(let i=0; i<this.rectCount; i++) groups[1].push(this.circles[i]);
+
+        if (isAutoMode) {
+            this.visibleGroups.forEach(len => {
+                if (len === 1) return;
+                groups[len] = [];
+                for(let s=0; s <= this.rectCount - len; s++) {
+                    let name = ""; for(let k=0; k<len; k++) name += this.circles[s+k];
+                    groups[len].push(name);
+                }
+            });
+        } else {
+            this.foundCombos.forEach(c => {
+                if (!groups[c.len]) groups[c.len] = [];
+                let name = ""; for(let i=c.sIdx; i<=c.eIdx; i++) name += this.circles[i];
+                if(!groups[c.len].includes(name)) groups[c.len].push(name);
+            });
+        }
+
+        let html = "<div style='border-bottom:1px solid #555; margin-bottom:5px;'><b>📜 魔法清单</b></div>";
+        Object.keys(groups).sort((a,b)=>a-b).forEach(len => {
+            const label = len == 1 ? "基本图形" : `<span style='color:${this.colors[len-1]}'>${len}个拼的</span>`;
+            // 顿号修复
+            html += `<div style='margin-bottom:3px;'>${label}：${groups[len].join('、')}</div>`;
+        });
+        listEl.innerHTML = html;
+    },
+
+    updateLogic() {
+        const counts = {}; this.foundCombos.forEach(c => counts[c.len] = (counts[c.len] || 0) + 1);
+        for (let i = 2; i <= this.rectCount; i++) {
+            const el = document.getElementById(`f${i}`);
+            if (el) {
+                const found = counts[i] || 0; el.innerText = found;
+                if (found >= (this.rectCount - i + 1)) { el.style.opacity = "1"; el.style.color = this.colors[i-1]; }
+            }
+        }
+        const totalReq = (this.rectCount * (this.rectCount + 1)) / 2 - this.rectCount;
+        energyFill.style.width = (this.foundCombos.length / totalReq) * 100 + "%";
+        if (this.foundCombos.length >= totalReq) {
+            document.getElementById('eq').classList.add('pulse-equal');
+            dialogue.innerHTML = "小白：<span style='color:var(--gold)'>全找齐了！快点击等号！</span>";
+        }
+    },
+
+    // ================= 流程控制 =================
+
+    nextStep() {
+        this.stage++; 
+        this.foundCombos = [];
+        this.visibleGroups = [1];
+        this.dialVal = 0;
+        document.getElementById('dial-num').innerText = "0";
+        
+        document.getElementById('main-btn').classList.add('hidden');
+        document.getElementById('dial-interaction').classList.add('hidden');
+        document.getElementById('number-pool').classList.add('hidden');
+        document.getElementById('combo-list').classList.add('hidden');
+        formulaBar.innerHTML = "";
+        energyFill.style.width = "0%";
+        this.showHandDemo(false);
+        canvas.onmousedown = null;
+
+        switch(this.stage) {
+            case 1:
+                this.rectCount = 1; this.drawCurrentStage();
+                dialogue.innerHTML = "小白：这是1个基本图形。";
+                formulaBar.innerHTML = "1 = <span class='show-res'>1</span>";
+                this.updateComboList();
+                document.getElementById('main-btn').classList.remove('hidden');
+                break;
+            case 2:
+                this.rectCount = 2; this.drawCurrentStage(); this.showHandDemo(true);
+                dialogue.innerHTML = "小白：试着划出拼成的组合！";
+                this.showFormula(); this.initDragInteraction(); this.updateComboList();
+                break;
+            case 3:
+                this.rectCount = 3; this.drawCurrentStage();
+                dialogue.innerHTML = "小白：3个兄弟！快找全所有组合！";
+                this.showFormula(); this.initDragInteraction(); this.updateComboList();
+                break;
+            case 4: 
+                this.rectCount = 4; this.drawCurrentStage();
+                dialogue.innerHTML = "小白：4个兄弟！继续划线找出规律！";
+                this.showFormula(); this.initDragInteraction(); this.updateComboList();
+                break;
+            case 5: 
+                this.rectCount = 5; this.drawCurrentStage();
+                dialogue.innerHTML = "小白：5个长方形！先确定【起点数】！";
+                document.getElementById('dial-interaction').classList.remove('hidden');
+                break;
+            case 6: 
+                this.rectCount = 5; this.drawCurrentStage();
+                dialogue.innerHTML = "小白：线段也一样！确定起点数！";
+                document.getElementById('dial-interaction').classList.remove('hidden');
+                break;
+            case 7: 
+                this.rectCount = 5; this.drawCurrentStage();
+                dialogue.innerHTML = "小白：三角形也一样！起点数是多少？";
+                document.getElementById('dial-interaction').classList.remove('hidden');
+                break;
+            case 8: 
+                this.showTrap();
+                break;
+        }
+    },
+
+    showFormula() {
+        let fHtml = `${this.rectCount}`;
+        for(let i = this.rectCount-1; i >= 1; i--) fHtml += ` + <span id="f${this.rectCount-i+1}" style="opacity:0.3">?</span>`;
+        formulaBar.innerHTML = `${fHtml} <span id="eq" onclick="manager.showRes()">=</span> <span id="res" style="opacity:0">?</span>`;
+    },
+
+    // 修复：点击等号响应逻辑
+    showRes() {
+        const totalReq = (this.rectCount * (this.rectCount + 1)) / 2 - this.rectCount;
+        
+        // 划线模式 (Stage 1-5)：必须找全
+        if (this.stage <= 5 && this.foundCombos.length < totalReq) {
+             dialogue.innerHTML = "小白：还有隐藏的图形没找到哦！"; return;
+        }
+        // 卡片模式 (Stage 6-7)：必须卡片点完
+        if (this.stage >= 6 && this.visibleGroups.length < this.rectCount) {
+             dialogue.innerHTML = "小白：还没找全呢！请继续点击卡片！"; return;
+        }
+
+        const total = (this.rectCount * (this.rectCount + 1)) / 2;
+        document.getElementById('res').innerText = total;
+        document.getElementById('res').classList.add('show-res');
+        document.getElementById('main-btn').classList.remove('hidden');
+    },
+
+    showHandDemo(show) {
+        const hand = document.getElementById('hand-pointer');
+        if(show) { 
+            hand.classList.remove('hidden');
+            const { startX, startY } = this.getConfig();
+            hand.style.left = (startX + 20) + 'px';
+            hand.style.top = (startY + 40) + 'px';
+            let s = null;
+            const anim = (t) => {
+                if(!s) s=t;
+                const p = ((t-s)%2000)/2000;
+                hand.style.transform = `translateX(${p*70}px)`;
+                if(this.stage===2 && !this.isDragging) requestAnimationFrame(anim);
+                else hand.classList.add('hidden');
+            };
+            requestAnimationFrame(anim);
+        } else {
+            hand.classList.add('hidden');
+        }
+    },
+    
+    showTrap() {
+        this.rectCount = 5; this.drawBaseRects();
+        dialogue.innerHTML = "小白：【终极考题】5个正方形排一排，一共有几个<span style='color:white'>正方形</span>？";
+        formulaBar.innerHTML = "正方形总数 = ?";
+        setTimeout(() => {
+            document.getElementById('modal-overlay').classList.remove('hidden');
+            document.getElementById('modal-text').innerText = "拼起来的图形长宽不等，还能叫正方形吗？";
+            document.getElementById('modal-btns').innerHTML = `<button class="magic-btn" onclick="manager.endGame(5)">只有5个</button><button class="magic-btn" style="background:#ef4444" onclick="manager.endGame(15)">还是15个</button>`;
+        }, 1500);
+    },
+
+    endGame(val) {
+        document.getElementById('modal-overlay').classList.add('hidden');
+        if(val === 5) { dialogue.innerHTML = "🏆 通关！正方形只有原来的5个！"; formulaBar.innerHTML = "🎉"; }
+        else dialogue.innerHTML = "小白：哎呀！拼起来形状变了！";
+    }
+};
+
+window.onload = () => manager.nextStep();
+</script>
+</body>
+</html>

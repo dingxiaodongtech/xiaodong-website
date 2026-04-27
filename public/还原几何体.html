@@ -1,0 +1,693 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>时空建筑师 - 最终评价版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --primary: #007FFF;
+            --primary-bg: #E6F2FF;
+            --stage-bg: linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%);
+            --success: #10B981;
+            --error: #EF4444;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+        body {
+            margin: 0; padding: 0; height: 100vh; width: 100vw;
+            background-color: #fff; display: flex; flex-direction: column; overflow: hidden;
+            font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+
+        /* --- 顶部：3D 舞台 --- */
+        .stage-area {
+            flex: 1;
+            background: var(--stage-bg);
+            position: relative;
+            border-bottom-right-radius: 40px;
+            border-bottom-left-radius: 40px;
+            box-shadow: 0 10px 30px -10px rgba(0, 127, 255, 0.05);
+            display: flex; justify-content: center; align-items: center;
+            overflow: hidden; z-index: 10;
+        }
+
+        /* 目标蓝图卡片 */
+        .blueprint-card {
+            position: absolute; top: 12px; right: 12px;
+            background: rgba(255,255,255,0.95); backdrop-filter: blur(8px);
+            padding: 10px 14px; border-radius: 16px; border: 1px solid #E5E7EB;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+            display: flex; flex-direction: column; align-items: center;
+            z-index: 20; transform: scale(0.9); transform-origin: top right;
+            min-width: 80px; width: auto; max-width: 90vw;
+            transition: all 0.3s ease;
+        }
+        .mini-grid-col { display: flex; flex-direction: column; align-items: center; padding: 2px; border-radius: 4px; transition: 0.3s; }
+        .mini-grid-col.highlight-pulse {
+            animation: pulseOrange 1.5s infinite;
+            background-color: #FEF3C7;
+            border: 1px solid #F59E0B;
+        }
+        @keyframes pulseOrange { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+        .mini-grid { display: grid; grid-template-columns: repeat(3, 10px); gap: 2px; }
+        .mini-cell { width: 10px; height: 10px; background: #E5E7EB; border-radius: 2px; transition: background-color 0.3s; border: 1.5px solid transparent; }
+        .mini-cell.fill { background: #374151; }
+        .mini-cell.num { font-size: 8px; display: flex; justify-content: center; align-items: center; color: #fff; background: var(--primary); line-height: 1; border: none; }
+        .mini-cell.correct { background-color: var(--success) !important; color: white; border-color: transparent; }
+        .mini-cell.wrong { background-color: var(--error) !important; color: white; border-color: transparent; }
+        .mini-cell.extra { background-color: transparent !important; border: 1.5px dashed var(--error) !important; color: var(--error); }
+        .view-label { font-size: 10px; color: #9CA3AF; margin-top: 4px; white-space: nowrap; font-weight: bold; }
+
+        /* 积分牌 */
+        .score-badge {
+            position: absolute; top: 16px; left: 16px;
+            background: #FEF3C7; color: #D97706;
+            padding: 6px 12px; border-radius: 20px;
+            font-size: 14px; font-weight: 800;
+            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
+            display: none; align-items: center; gap: 4px; z-index: 20;
+        }
+        .score-badge.show { display: flex; animation: bounceIn 0.5s; }
+
+        /* 剩余机会提示 (M5) */
+        .attempts-badge {
+            position: absolute; top: 50px; left: 16px;
+            background: #F3F4F6; color: #6B7280;
+            padding: 4px 10px; border-radius: 12px;
+            font-size: 10px; font-weight: 600;
+            display: none; z-index: 20;
+        }
+        .attempts-badge.show { display: block; }
+
+        /* --- 底部：控制区 --- */
+        .control-area {
+            flex: 1; background: #fff;
+            display: flex; flex-direction: column; align-items: center;
+            position: relative; padding: 0 16px;
+            overflow-y: auto; padding-bottom: 100px;
+        }
+
+        .header-box { margin-top: 12px; margin-bottom: 4px; text-align: center; width: 100%; flex-shrink: 0; }
+        .scenario-tag { display: inline-block; padding: 2px 8px; background: var(--primary-bg); color: var(--primary); border-radius: 20px; font-size: 10px; font-weight: bold; margin-bottom: 2px; }
+        .level-indicator { font-size: 11px; color: #9CA3AF; margin-top: 2px; font-weight: 600; }
+
+        /* 九宫格容器 */
+        .grid-wrapper {
+            position: relative; background: #F9FAFB;
+            padding: 16px; border-radius: 24px;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.03);
+            display: flex; justify-content: center; align-items: center;
+            margin-top: 8px; flex-shrink: 0;
+        }
+
+        .action-btn {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            width: 44px; height: 44px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 5;
+        }
+        .action-btn:active { transform: translateY(-50%) scale(0.92); }
+        .btn-reset { left: -20px; background: #fff; color: #6B7280; border: 1px solid #F3F4F6; }
+        .btn-check { right: -20px; background: var(--primary); color: #fff; border: 3px solid #fff; box-shadow: 0 4px 16px rgba(0, 127, 255, 0.3); }
+
+        .input-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .cell-btn {
+            width: 48px; height: 48px; background: #fff; border-radius: 12px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 20px; font-weight: 800; color: #D1D5DB;
+            border: 2px solid transparent; box-shadow: 0 2px 0 #E5E7EB;
+            position: relative; transition: all 0.1s;
+        }
+        .cell-btn.active { background: var(--primary-bg); color: var(--primary); border-color: var(--primary); box-shadow: 0 2px 0 #93C5FD; transform: translateY(-1px); }
+        .cell-btn:active { transform: translateY(2px); box-shadow: none; }
+
+        .anchor-dot {
+            position: absolute; top: 4px; left: 4px; width: 6px; height: 6px; 
+            background: #F59E0B; border-radius: 50%; box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+        }
+
+        /* 底部导航 */
+        .bottom-nav {
+            height: 60px; background: rgba(255,255,255,0.95); border-top: 1px solid #F3F4F6;
+            display: flex; justify-content: space-around; align-items: center;
+            padding-bottom: env(safe-area-inset-bottom);
+            position: fixed; bottom: 0; width: 100%; z-index: 50;
+            backdrop-filter: blur(8px);
+        }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9CA3AF; font-size: 10px; height: 100%; transition: 0.2s; position: relative; }
+        .nav-item.active { color: var(--primary); font-weight: 700; }
+        .nav-item.locked { opacity: 0.5; pointer-events: none; filter: grayscale(1); }
+        .status-icon { position: absolute; top: 4px; right: 16px; width: 14px; height: 14px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: white; font-size: 10px; }
+        .status-icon.lock { background: #EF4444; padding: 2px; }
+        .status-icon.check { background: #10B981; padding: 1px; }
+
+        /* Toast */
+        .toast {
+            position: fixed; top: 12%; left: 50%; transform: translate(-50%, -20px);
+            background: #1F2937; color: #fff; padding: 10px 20px; border-radius: 40px;
+            font-size: 13px; font-weight: 600; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 200;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25); white-space: nowrap; display: flex; align-items: center; gap: 6px;
+        }
+        .toast.show { opacity: 1; transform: translate(-50%, 0); }
+        .toast.success { background: #059669; }
+        .toast.error { background: #DC2626; }
+
+        /* 庆典 Canvas & Modal */
+        #confetti { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999; }
+        .victory-modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+            display: flex; justify-content: center; align-items: center; z-index: 1000;
+            opacity: 0; pointer-events: none; transition: 0.3s;
+        }
+        .victory-modal.show { opacity: 1; pointer-events: auto; }
+        .victory-card {
+            background: white; width: 85%; max-width: 320px; border-radius: 30px; padding: 30px 20px;
+            text-align: center; transform: scale(0.8); transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .victory-modal.show .victory-card { transform: scale(1); }
+        .victory-btn {
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            color: white; padding: 12px 32px; border-radius: 50px; font-weight: bold; font-size: 16px;
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4); margin-top: 20px; display: inline-block;
+            cursor: pointer; active:scale-95 transition;
+        }
+
+        .block-anim { animation: popUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; opacity: 0; transform-origin: center bottom; }
+        @keyframes popUp { from { opacity: 0; transform: scale(0.5) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes bounceIn { 0% { transform: scale(0); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+    <canvas id="confetti"></canvas>
+
+    <div class="stage-area">
+        <div id="score-badge" class="score-badge">
+            <i data-lucide="star" width="14" fill="currentColor"></i>
+            <span id="score-val">0</span>
+        </div>
+        <div id="attempts-badge" class="attempts-badge">剩余机会: <span id="attempts-val">2</span></div>
+        <div id="scene-container" class="w-full h-full"></div>
+        <div id="blueprint-container" class="blueprint-card"></div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <div class="control-area">
+        <div class="header-box">
+            <span id="scenario-text" class="scenario-tag">施工队</span>
+            <h1 id="module-title" class="text-lg font-black text-slate-800 mt-1 tracking-tight"></h1>
+            <div class="flex justify-center items-center gap-2 mt-1">
+                <p id="instruction-text" class="text-xs text-slate-400 font-medium"></p>
+                <span id="level-indicator" class="level-indicator bg-slate-100 px-2 rounded-md">1/3</span>
+            </div>
+        </div>
+
+        <div class="grid-wrapper">
+            <div class="action-btn btn-reset" onclick="app.resetGrid()">
+                <i data-lucide="rotate-ccw" width="20"></i>
+            </div>
+            <div class="action-btn btn-check" onclick="app.checkBuild()">
+                <i data-lucide="check" width="24"></i>
+            </div>
+            <div id="input-grid" class="input-grid"></div>
+        </div>
+        
+        <div class="h-4 w-full shrink-0"></div>
+    </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item active" id="nav-M1" onclick="app.loadModule('M1')">
+            <i data-lucide="square" width="20"></i><span>地基</span>
+            <div class="status-icon check hidden"><i data-lucide="check" width="10"></i></div>
+        </div>
+        <div class="nav-item locked" id="nav-M2" onclick="app.loadModule('M2')">
+            <i data-lucide="arrow-up-square" width="20"></i><span>上面</span>
+            <div class="status-icon lock"><i data-lucide="lock" width="8"></i></div>
+            <div class="status-icon check hidden"><i data-lucide="check" width="10"></i></div>
+        </div>
+        <div class="nav-item locked" id="nav-M3" onclick="app.loadModule('M3')">
+            <i data-lucide="eye" width="20"></i><span>正面</span>
+            <div class="status-icon lock"><i data-lucide="lock" width="8"></i></div>
+            <div class="status-icon check hidden"><i data-lucide="check" width="10"></i></div>
+        </div>
+        <div class="nav-item locked" id="nav-M4" onclick="app.loadModule('M4')">
+            <i data-lucide="monitor" width="20"></i><span>左面</span>
+            <div class="status-icon lock"><i data-lucide="lock" width="8"></i></div>
+            <div class="status-icon check hidden"><i data-lucide="check" width="10"></i></div>
+        </div>
+        <div class="nav-item locked" id="nav-M5" onclick="app.loadModule('M5')">
+            <i data-lucide="crown" width="20"></i><span>挑战</span>
+            <div class="status-icon lock"><i data-lucide="lock" width="8"></i></div>
+        </div>
+    </div>
+
+    <!-- 胜利结算弹窗 -->
+    <div id="victory-modal" class="victory-modal">
+        <div class="victory-card">
+            <div class="text-6xl mb-4" id="victory-icon">🏆</div>
+            <h2 class="text-2xl font-black text-slate-800 mb-2" id="victory-title">完美通关！</h2>
+            <div class="text-slate-500 mb-6 text-sm" id="victory-desc">恭喜你获得“时空建筑大师”称号</div>
+            <div class="bg-blue-50 rounded-xl p-4 mb-6">
+                <div class="text-xs text-blue-400 font-bold uppercase tracking-wider mb-1">FINAL SCORE</div>
+                <div class="text-4xl font-black text-blue-600 tracking-tighter" id="final-score">100</div>
+            </div>
+            <div class="victory-btn" onclick="location.reload()">再玩一次</div>
+        </div>
+    </div>
+
+    <script>
+        // --- Confetti Logic ---
+        const confetti = { maxCount: 150, speed: 2, frameInterval: 15, alpha: 1.0, gradient: false, start: null, stop: null, toggle: null, pause: null, resume: null, togglePause: null, remove: null, isRunning: false, colors: ['rgba(255,165,0,', 'rgba(255,69,0,', 'rgba(0,191,255,', 'rgba(50,205,50,', 'rgba(255,215,0,'] };
+        (function() { confetti.start = startConfetti; confetti.stop = stopConfetti; var supportsAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame; var colors = confetti.colors; var streamingConfetti = false; var animationTimer = null; var pause = false; var lastFrameTime = Date.now(); var particles = []; var waveAngle = 0; var context = null; function resetParticle(particle, width, height) { particle.color = colors[(Math.random() * colors.length) | 0] + (confetti.alpha + ")"); particle.color2 = colors[(Math.random() * colors.length) | 0] + (confetti.alpha + ")"); particle.x = Math.random() * width; particle.y = Math.random() * height - height; particle.diameter = Math.random() * 10 + 5; particle.tilt = Math.random() * 10 - 10; particle.tiltAngleIncrement = Math.random() * 0.07 + 0.05; particle.tiltAngle = Math.random() * Math.PI; return particle; } function startConfetti() { var width = window.innerWidth; var height = window.innerHeight; window.requestAnimationFrame = (function() { return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) { return window.setTimeout(callback, confetti.frameInterval); }; })(); var canvas = document.getElementById("confetti"); if (canvas === null) { canvas = document.createElement("canvas"); canvas.setAttribute("id", "confetti"); canvas.setAttribute("style", "display:block;z-index:999999;pointer-events:none;position:fixed;top:0"); document.body.prepend(canvas); canvas.width = width; canvas.height = height; window.addEventListener("resize", function() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }, true); context = canvas.getContext("2d"); } else if (context === null) context = canvas.getContext("2d"); var count = confetti.maxCount; while (particles.length < count) particles.push(resetParticle({}, width, height)); streamingConfetti = true; pause = false; runAnimation(); } function stopConfetti() { streamingConfetti = false; } function runAnimation() { if (pause) return; else if (particles.length === 0) { context.clearRect(0, 0, window.innerWidth, window.innerHeight); animationTimer = null; } else { var now = Date.now(); var delta = now - lastFrameTime; if (!supportsAnimationFrame || delta > confetti.frameInterval) { context.clearRect(0, 0, window.innerWidth, window.innerHeight); var width = window.innerWidth; var height = window.innerHeight; for (var i = 0; i < particles.length; i++) { var particle = particles[i]; context.beginPath(); context.lineWidth = particle.diameter; context.strokeStyle = particle.color; var x = particle.x + particle.tilt; var y = particle.y + particle.tilt + particle.diameter / 2; context.moveTo(x, particle.y); context.lineTo(x, y + particle.tilt); context.stroke(); particle.tiltAngle += particle.tiltAngleIncrement; particle.x += Math.sin(waveAngle) - 0.5; particle.y += (Math.cos(waveAngle) + particle.diameter + confetti.speed) * 0.5; particle.tilt = Math.sin(particle.tiltAngle) * 15; if (particle.x > width + 20 || particle.x < -20 || particle.y > height) { if (streamingConfetti && particles.length <= confetti.maxCount) resetParticle(particle, width, height); else { particles.splice(i, 1); i--; } } } lastFrameTime = now - (delta % confetti.frameInterval); } animationTimer = requestAnimationFrame(runAnimation); } } })();
+
+        // --- Game Logic ---
+        const LEVELS = {
+            M1: [{t:[[0,0,0],[0,1,0],[0,0,0]]},{t:[[1,0,0],[0,1,0],[0,0,1]]},{t:[[1,0,0],[1,1,1],[0,1,0]]}],
+            M2: [{t:[[0,0,0],[0,2,0],[0,0,0]]},{t:[[3,2,1],[0,0,0],[0,0,0]]},{t:[[3,2,0],[2,0,0],[1,0,0]]}],
+            M3: [{t:[[0,0,0],[0,0,0],[1,1,1]]},{t:[[0,0,0],[0,0,0],[1,2,3]]},{t:[[2,0,0],[0,0,0],[1,2,0]]}],
+            M4: [{t:[[1,0,0],[0,0,0],[1,0,0]]},{t:[[0,0,0],[1,0,0],[2,0,0]]},{t:[[3,0,0],[1,0,0],[2,0,0]]}],
+            M5: [{t:[[1,0,0],[0,0,0],[0,0,0]]},{t:[[0,0,0],[1,1,1],[0,0,0]]},{t:[[1,1,0],[0,0,0],[0,0,0]]},{t:[[2,0,0],[1,0,0],[0,0,0]]},{t:[[1,2,0],[0,0,0],[0,0,0]]},{t:[[0,0,0],[1,2,3],[0,0,0]]},{t:[[2,0,0],[2,1,0],[1,0,0]]},{t:[[2,1,0],[0,1,1],[0,0,0]]},{t:[[3,1,0],[1,2,0],[0,0,0]]},{t:[[3,1,1],[1,2,1],[1,1,1]]}]
+        };
+
+        const CONFIG = {
+            modules: {
+                M1: { title: "地基训练", scenario: "第一步：地基", desc: "根据蓝图铺设地基", type: "base" },
+                M2: { title: "高度训练", scenario: "第二步：施工", desc: "数字代表高度", type: "top" },
+                M3: { title: "正面观察", scenario: "第三步：检查", desc: "符合正面投影", type: "front" },
+                M4: { title: "侧面观察", scenario: "第四步：加固", desc: "符合左面投影", type: "left" },
+                M5: { title: "终极挑战", scenario: "验收", desc: "综合三视图还原", type: "all" }
+            }
+        };
+
+        const SVG_DEFS = `
+            <defs>
+                <g id="block">
+                    <path d="M0,0 H40 V-40 H0 Z" fill="#60A5FA" stroke="#fff" stroke-width="1.5"/>
+                    <path d="M0,-40 H40 L60,-55 H20 Z" fill="#93C5FD" stroke="#fff" stroke-width="1.5"/>
+                    <path d="M40,0 L60,-15 V-55 L40,-40 Z" fill="#2563EB" stroke="#fff" stroke-width="1.5"/>
+                </g>
+                <g id="floor">
+                    <path d="M0,0 H40 L60,-15 H20 Z" fill="#fff" stroke="#E5E7EB" stroke-width="1.5"/>
+                </g>
+                <g id="floor-active">
+                    <path d="M0,0 H40 L60,-15 H20 Z" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.5"/>
+                </g>
+                <g id="origin-mark">
+                    <circle cx="0" cy="0" r="4" fill="#F59E0B" />
+                    <circle cx="0" cy="0" r="8" stroke="#F59E0B" stroke-width="1" stroke-dasharray="2,2" opacity="0.6"/>
+                </g>
+            </defs>
+        `;
+
+        const app = {
+            state: { 
+                mod: 'M1', 
+                lvl: 0, 
+                grid: [[0,0,0],[0,0,0],[0,0,0]], 
+                unlocked: ['M1'], 
+                completed: [],
+                score: 0,
+                feedback: null, 
+                m5FailCount: 0
+            },
+
+            init() { 
+                lucide.createIcons(); 
+                this.updateNavStatus();
+                this.loadModule('M1'); 
+            },
+
+            updateNavStatus() {
+                const mods = ['M1', 'M2', 'M3', 'M4', 'M5'];
+                mods.forEach(m => {
+                    const el = document.getElementById(`nav-${m}`);
+                    const lockIcon = el.querySelector('.status-icon.lock');
+                    const checkIcon = el.querySelector('.status-icon.check');
+                    
+                    if (this.state.unlocked.includes(m)) {
+                        el.classList.remove('locked');
+                        if(lockIcon) lockIcon.style.display = 'none';
+                    } else {
+                        el.classList.add('locked');
+                        if(lockIcon) lockIcon.style.display = 'flex';
+                    }
+
+                    if (this.state.completed.includes(m) && checkIcon) {
+                        checkIcon.classList.remove('hidden');
+                        checkIcon.style.display = 'flex';
+                    }
+                });
+            },
+
+            loadModule(modId) {
+                if (!this.state.unlocked.includes(modId)) {
+                    this.showToast("🔒 请先完成前序模块！", "error");
+                    return;
+                }
+                this.state.mod = modId;
+                this.state.lvl = 0;
+                this.state.m5FailCount = 0;
+                this.state.feedback = null;
+                this.resetGrid();
+                
+                const info = CONFIG.modules[modId];
+                document.getElementById('scenario-text').innerText = info.scenario;
+                document.getElementById('module-title').innerText = info.title;
+                document.getElementById('instruction-text').innerText = info.desc;
+                
+                const scoreBadge = document.getElementById('score-badge');
+                const attemptsBadge = document.getElementById('attempts-badge');
+                if (modId === 'M5') {
+                    scoreBadge.classList.add('show');
+                    attemptsBadge.classList.add('show');
+                    document.getElementById('score-val').innerText = this.state.score;
+                    document.getElementById('attempts-val').innerText = 2;
+                } else {
+                    scoreBadge.classList.remove('show');
+                    attemptsBadge.classList.remove('show');
+                }
+
+                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+                document.getElementById(`nav-${modId}`).classList.add('active');
+                this.renderAll();
+            },
+
+            resetGrid() { 
+                this.state.grid = [[0,0,0],[0,0,0],[0,0,0]]; 
+                this.state.feedback = null;
+                this.renderAll(); 
+            },
+            
+            renderAll() {
+                const total = LEVELS[this.state.mod].length;
+                document.getElementById('level-indicator').innerText = `${this.state.lvl + 1}/${total}`;
+                
+                if (this.state.mod === 'M5') {
+                    document.getElementById('attempts-val').innerText = 2 - this.state.m5FailCount;
+                }
+
+                this.render3D(); 
+                this.renderInputGrid(); 
+                this.renderBlueprint(); 
+            },
+
+            render3D() {
+                const grid = this.state.grid;
+                let html = '';
+                
+                html += `<g stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="4,4">
+                    <line x1="0" y1="0" x2="0" y2="-300" />
+                    <line x1="0" y1="0" x2="160" y2="0" />
+                    <line x1="0" y1="0" x2="-80" y2="60" />
+                </g>`;
+                html += `<use href="#origin-mark" x="0" y="0" />`;
+
+                for(let r=0; r<3; r++) { 
+                    for(let c=0; c<3; c++) { 
+                        const x = c * 40 + r * -20 - 20;
+                        const y = r * 15 + 15;
+                        const isActive = grid[r][c] > 0;
+                        html += `<use href="${isActive ? '#floor-active' : '#floor'}" x="${x}" y="${y}" />`;
+                        for(let h=0; h<grid[r][c]; h++) {
+                            const delay = (r+c+h) * 0.05;
+                            html += `<use href="#block" x="${x}" y="${y - h*40}" class="block-anim" style="animation-delay:${delay}s" />`;
+                        }
+                    }
+                }
+                document.getElementById('scene-container').innerHTML = `
+                    <svg viewBox="-80 -350 300 450" style="width:100%; height:100%; overflow:visible;">
+                        ${SVG_DEFS}
+                        <g transform="translate(0, 0)">${html}</g>
+                    </svg>
+                `;
+            },
+
+            renderInputGrid() {
+                const container = document.getElementById('input-grid');
+                container.innerHTML = '';
+                const isBaseMode = this.state.mod === 'M1';
+                for(let r=0; r<3; r++) {
+                    for(let c=0; c<3; c++) {
+                        const val = this.state.grid[r][c];
+                        const btn = document.createElement('div');
+                        btn.className = `cell-btn ${val>0 ? 'active' : ''}`;
+                        btn.innerText = (!isBaseMode && val>0) ? val : '';
+                        if(r===0 && c===0) {
+                            const dot = document.createElement('div');
+                            dot.className = 'anchor-dot';
+                            btn.appendChild(dot);
+                        }
+                        btn.onclick = () => {
+                            const maxH = isBaseMode ? 2 : 4;
+                            this.state.grid[r][c] = (val + 1) % maxH;
+                            this.state.feedback = null;
+                            this.renderAll();
+                        };
+                        container.appendChild(btn);
+                    }
+                }
+            },
+
+            renderBlueprint() {
+                const modType = CONFIG.modules[this.state.mod].type;
+                const target = LEVELS[this.state.mod][this.state.lvl].t;
+                const container = document.getElementById('blueprint-container');
+                const fb = this.state.feedback;
+                
+                let html = `<div class="text-[10px] text-slate-400 mb-1 font-bold">目标蓝图</div>`;
+                
+                const drawMiniGrid = (data, label, statusData = null, isHighlight = false) => {
+                    const highlightClass = isHighlight ? 'highlight-pulse' : '';
+                    let g = `<div class="mini-grid-col ${highlightClass}"><div class="mini-grid">`;
+                    
+                    if (label === "正面看" || label === "左面看") {
+                        for(let r=0; r<3; r++) { 
+                            for(let c=0; c<3; c++) { 
+                                const h = data[c];
+                                const filled = r >= (3 - h);
+                                let colorClass = filled ? 'fill' : '';
+                                if (statusData) {
+                                    const colStatus = statusData[c];
+                                    if (colStatus === 'correct' && filled) colorClass = 'correct';
+                                    else if (colStatus === 'wrong' && filled) colorClass = 'wrong';
+                                    else if (colStatus === 'extra' && r === 2) colorClass = 'extra';
+                                }
+                                g += `<div class="mini-cell ${colorClass}"></div>`;
+                            }
+                        }
+                    } else { 
+                        for(let r=0;r<3;r++) for(let c=0;c<3;c++) {
+                            const v = data[r][c];
+                            const showNum = (modType === 'top') && v > 0;
+                            let colorClass = showNum ? 'num' : (v > 0 ? 'fill' : '');
+                            if (statusData) {
+                                const cellStatus = statusData[r][c];
+                                if (cellStatus === 'correct') colorClass += ' correct';
+                                else if (cellStatus === 'wrong') colorClass += ' wrong';
+                                else if (cellStatus === 'extra') colorClass = 'extra';
+                            }
+                            g += `<div class="mini-cell ${colorClass}">${showNum ? v : ''}</div>`;
+                        }
+                    }
+                    g += `</div><span class="view-label">${label}</span></div>`;
+                    return g;
+                };
+
+                const getFrontProj = (t) => [0,1,2].map(c => Math.max(t[0][c], t[1][c], t[2][c]));
+                const getLeftProj = (t) => [0,1,2].map(r => Math.max(t[r][0], t[r][1], t[r][2]));
+
+                if (modType === 'base' || modType === 'top') {
+                    html += `<div class="flex gap-2">${drawMiniGrid(target, "上面看", fb ? fb.matrix : null)}</div>`;
+                } else if (modType === 'front') {
+                    html += `<div class="flex gap-2">${drawMiniGrid(getFrontProj(target), "正面看", fb ? fb.indices : null)}</div>`;
+                } else if (modType === 'left') {
+                    html += `<div class="flex gap-2">${drawMiniGrid(getLeftProj(target), "左面看", fb ? fb.indices : null)}</div>`;
+                } else if (modType === 'all') {
+                    html += `<div class="flex gap-3">`;
+                    let topView = target.map(r => r.map(c => c > 0 ? 1 : 0)); 
+                    const showHint = this.state.m5FailCount >= 1; // 第一次错就提示
+                    html += drawMiniGrid(topView, "上面看", fb ? fb.matrix : null, showHint);
+                    html += drawMiniGrid(getFrontProj(target), "正面看", fb ? fb.frontIndices : null);
+                    html += drawMiniGrid(getLeftProj(target), "左面看", fb ? fb.leftIndices : null);
+                    html += `</div>`;
+                }
+                container.innerHTML = html;
+            },
+
+            checkBuild() {
+                const modType = CONFIG.modules[this.state.mod].type;
+                const target = LEVELS[this.state.mod][this.state.lvl].t;
+                const user = this.state.grid;
+                let pass = false;
+                let feedbackData = {};
+
+                // --- 校验逻辑 ---
+                if (modType === 'base' || modType === 'top') {
+                    let matrix = [[],[],[]];
+                    pass = true;
+                    for(let r=0;r<3;r++) for(let c=0;c<3;c++) {
+                        const t = target[r][c];
+                        const u = user[r][c];
+                        if (modType==='base') {
+                            if ((t>0) && (u>0)) matrix[r][c] = 'correct';
+                            else if ((t>0) && (u===0)) { matrix[r][c] = 'wrong'; pass = false; }
+                            else if ((t===0) && (u>0)) { matrix[r][c] = 'extra'; pass = false; }
+                            else matrix[r][c] = null;
+                        } else {
+                            if (t>0 && t===u) matrix[r][c] = 'correct';
+                            else if (t>0 && t!==u) { matrix[r][c] = 'wrong'; pass = false; }
+                            else if (t===0 && u>0) { matrix[r][c] = 'extra'; pass = false; }
+                            else matrix[r][c] = null;
+                        }
+                    }
+                    feedbackData.matrix = matrix;
+                }
+                
+                const checkProj = (tArr, uArr) => tArr.map((t, i) => {
+                    const u = uArr[i];
+                    if (t === u) return 'correct';
+                    if (t === 0 && u > 0) return 'extra';
+                    return 'wrong';
+                });
+
+                const tF = [0,1,2].map(c => Math.max(target[0][c], target[1][c], target[2][c]));
+                const uF = [0,1,2].map(c => Math.max(user[0][c], user[1][c], user[2][c]));
+                const fStatus = checkProj(tF, uF);
+
+                const tL = [0,1,2].map(r => Math.max(target[r][0], target[r][1], target[r][2]));
+                const uL = [0,1,2].map(r => Math.max(user[r][0], user[r][1], user[r][2]));
+                const lStatus = checkProj(tL, uL);
+
+                if (modType === 'front') {
+                    feedbackData.indices = fStatus;
+                    pass = fStatus.every(s => s === 'correct');
+                } else if (modType === 'left') {
+                    feedbackData.indices = lStatus;
+                    pass = lStatus.every(s => s === 'correct');
+                } else if (modType === 'all') {
+                    let matrix = [[],[],[]];
+                    let topPass = true;
+                    for(let r=0;r<3;r++) for(let c=0;c<3;c++) {
+                        const t = target[r][c] > 0;
+                        const u = user[r][c] > 0;
+                        if (t && u) matrix[r][c] = 'correct';
+                        else if (t && !u) { matrix[r][c] = 'wrong'; topPass = false; }
+                        else if (!t && u) { matrix[r][c] = 'extra'; topPass = false; }
+                    }
+                    feedbackData.matrix = matrix;
+                    feedbackData.frontIndices = fStatus;
+                    feedbackData.leftIndices = lStatus;
+                    pass = topPass && fStatus.every(s => s === 'correct') && lStatus.every(s => s === 'correct');
+                }
+
+                // --- 结果处理 ---
+                if (pass) {
+                    this.state.m5FailCount = 0;
+                    this.state.feedback = null; 
+                    
+                    if (this.state.mod === 'M5') {
+                        this.state.score += 10;
+                        document.getElementById('score-val').innerText = this.state.score;
+                        this.showToast(`🎉 正确！得分 +10`, "success");
+                    } else {
+                        this.showToast("🎉 挑战成功！", "success");
+                    }
+                    setTimeout(() => { this.nextLevel(); }, 1000);
+                } else {
+                    this.state.feedback = feedbackData;
+                    this.renderBlueprint(); // 显示错误反馈
+
+                    if (this.state.mod === 'M5') {
+                        this.state.m5FailCount++;
+                        document.getElementById('attempts-val').innerText = 2 - this.state.m5FailCount;
+                        
+                        if (this.state.m5FailCount >= 2) {
+                            this.showToast("💔 挑战失败，0分", "error");
+                            setTimeout(() => { this.nextLevel(); }, 1500); // 强制下一关
+                        } else {
+                            this.showToast("⚠️ 还有1次机会，请看提示", "error");
+                        }
+                    } else {
+                        this.showToast("❌ 还没对齐，请看上方提示", "error");
+                    }
+                }
+            },
+
+            nextLevel() {
+                const maxLvl = LEVELS[this.state.mod].length - 1;
+                if (this.state.lvl < maxLvl) {
+                    this.state.lvl++;
+                    this.state.feedback = null;
+                    this.state.m5FailCount = 0;
+                    this.resetGrid();
+                } else {
+                    this.completeModule();
+                }
+            },
+
+            completeModule() {
+                if (!this.state.completed.includes(this.state.mod)) {
+                    this.state.completed.push(this.state.mod);
+                }
+
+                const mods = ['M1', 'M2', 'M3', 'M4', 'M5'];
+                const currIdx = mods.indexOf(this.state.mod);
+                
+                if (currIdx < 4) {
+                    const nextMod = mods[currIdx + 1];
+                    if (!this.state.unlocked.includes(nextMod)) {
+                        this.state.unlocked.push(nextMod);
+                    }
+                    this.updateNavStatus();
+                    this.showToast(`🏆 模块完成！即将进入 ${CONFIG.modules[nextMod].title}`, "success");
+                    setTimeout(() => this.loadModule(nextMod), 1500);
+                } else {
+                    this.updateNavStatus();
+                    this.showVictory();
+                }
+            },
+
+            showVictory() {
+                const s = this.state.score;
+                let title = "", desc = "", icon = "";
+                
+                if (s === 100) {
+                    icon = "🏆"; title = "完美通关！"; desc = "获得“时空建筑大师”称号";
+                    confetti.start();
+                } else if (s >= 80) {
+                    icon = "🚀"; title = "非常优秀！"; desc = "获得“资深工程师”称号";
+                    confetti.start();
+                } else if (s >= 60) {
+                    icon = "🙂"; title = "完成得不错！"; desc = "获得“正式建造师”称号";
+                    confetti.maxCount = 50; confetti.start();
+                } else {
+                    icon = "😐"; title = "还需要努力！"; desc = "获得“空间实习生”称号";
+                }
+
+                document.getElementById('victory-icon').innerText = icon;
+                document.getElementById('victory-title').innerText = title;
+                document.getElementById('victory-desc').innerText = desc;
+                document.getElementById('final-score').innerText = s;
+                document.getElementById('victory-modal').classList.add('show');
+            },
+
+            showToast(msg, type) {
+                const t = document.getElementById('toast');
+                t.className = `toast show ${type}`;
+                t.innerHTML = (type==='success'?'<i data-lucide="check-circle" width="16"></i>':'<i data-lucide="alert-circle" width="16"></i>') + `<span>${msg}</span>`;
+                lucide.createIcons();
+                setTimeout(() => t.classList.remove('show'), 2000);
+            }
+        };
+        app.init();
+    </script>
+</body>
+</html>
+```

@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>除法大富翁 - 对战版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0; padding: 0; background-color: #0f172a; color: #f1f5f9;
+            font-family: system-ui, -apple-system, sans-serif; overflow-x: hidden;
+            touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(30, 41, 59, 0.5); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(71, 85, 105, 0.8); border-radius: 4px; }
+
+        @keyframes flash-red { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+        .animate-flash-red { animation: flash-red 0.5s ease-in-out forwards; }
+
+        @keyframes bounce-player { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+        .animate-bounce-player { animation: bounce-player 1.2s ease-in-out infinite; }
+
+        @keyframes float-up-text {
+            0% { opacity: 0; transform: translateY(0) scale(0.8); }
+            20% { opacity: 1; transform: translateY(-15px) scale(1.2); }
+            80% { opacity: 1; transform: translateY(-25px) scale(1.2); }
+            100% { opacity: 0; transform: translateY(-35px) scale(1); }
+        }
+        .animate-float-up-text { animation: float-up-text 1.5s ease-out forwards; }
+        
+        .card-active:active { transform: scale(0.95); }
+        .ai-thinking { animation: pulse 1s infinite; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- 图标组件 ---
+        const IconHeart = ({ className }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>;
+        const IconCoins = ({ className }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg>;
+        const IconArrowRight = ({ className }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>;
+        const IconGhost = ({ className }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"/></svg>;
+        const IconBomb = ({ className }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="11" cy="13" r="9"/><path d="M14.35 4.65 16.3 2.7a2.41 2.41 0 0 1 3.4 0l1.6 1.6a2.4 2.4 0 0 1 0 3.4l-1.95 1.95"/><path d="m22 2-1.5 1.5"/></svg>;
+        const IconGem = ({ className }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13"/><path d="M13 3l3 6-4 13"/></svg>;
+        const IconTreePine = ({ className }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m17 14 3 3.3a1 1 0 0 1-.7 1.7H4.7a1 1 0 0 1-.7-1.7L7 14h-.3a1 1 0 0 1-.7-1.7L9 9h-.2A1 1 0 0 1 8 7.3L12 3l4 4.3a1 1 0 0 1-.8 1.7H15l3 3.3a1 1 0 0 1-.7 1.7H17Z"/><path d="M12 19v3"/></svg>;
+        const IconHome = ({ className }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
+        const IconCastle = ({ className }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 20v-9H2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2Z"/><path d="M18 11V4H6v7"/><path d="M15 22v-4a3 3 0 0 0-3-3v0a3 3 0 0 0-3 3v4"/><path d="M22 11V9"/><path d="M2 11V9"/><path d="M6 4V2"/><path d="M18 4V2"/><path d="M10 4V2"/><path d="M14 4V2"/></svg>;
+        const IconSwords = ({ className }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" x2="9" y1="14" y2="18"/><line x1="7" x2="4" y1="17" y2="20"/><line x1="3" x2="5" y1="19" y2="21"/></svg>;
+
+        // --- 游戏配置与地图生成 ---
+        const MAX_DAYS = 30;
+        const LAND_TYPES = [
+            { name: '平原', cost: 30, color: 'text-green-400' },
+            { name: '森林', cost: 40, color: 'text-emerald-500' },
+            { name: '沙滩', cost: 50, color: 'text-yellow-200' },
+            { name: '矿区', cost: 60, color: 'text-slate-400' },
+            { name: '绿洲', cost: 80, color: 'text-cyan-400' }
+        ];
+
+        const INITIAL_BOARD = Array.from({ length: 20 }, (_, i) => {
+            if (i === 0) return { id: i, type: 'START', name: '起点' };
+            if (i % 2 !== 0) {
+                const land = LAND_TYPES[Math.floor(i / 4) % LAND_TYPES.length];
+                return { id: i, type: 'EMPTY', name: land.name, cost: land.cost, owner: null, level: 0, color: land.color };
+            }
+            if (i === 4 || i === 14) return { id: i, type: 'TREASURE', name: '宝箱', reward: 30 };
+            if (i === 8 || i === 18) return { id: i, type: 'TRAP', name: '陷阱' };
+            return { id: i, type: 'MONSTER', name: '怪兽' };
+        });
+
+        const getTileGridStyle = (index) => {
+            if (index >= 0 && index <= 5) return { gridRow: 1, gridColumn: index + 1 };
+            if (index >= 6 && index <= 9) return { gridRow: index - 4, gridColumn: 6 };
+            if (index >= 10 && index <= 15) return { gridRow: 6, gridColumn: 16 - index };
+            if (index >= 16 && index <= 19) return { gridRow: 21 - index, gridColumn: 1 };
+            return {};
+        };
+
+        function App() {
+            const [board, setBoard] = useState(INITIAL_BOARD);
+            const [player, setPlayer] = useState({ id: 'PLAYER', name: '你', icon: '🧙‍♂️', pos: 0, hp: 100, coins: 50, assets: 50 });
+            const [ai, setAi] = useState({ id: 'AI', name: '对手', icon: '🤖', pos: 0, hp: 100, coins: 50, assets: 50 });
+            const [day, setDay] = useState(1);
+            const [currentPlayer, setCurrentPlayer] = useState('PLAYER'); // 'PLAYER' or 'AI'
+            const [question, setQuestion] = useState({ dividend: 0, divisors: [] });
+            const [logs, setLogs] = useState(['游戏开始！目标：存活30天，买下最多的地皮！']);
+            const [gameOver, setGameOver] = useState({ isOver: false, winner: null, reason: '' });
+            const [showDamage, setShowDamage] = useState(false);
+            const [floatingTexts, setFloatingTexts] = useState([]);
+            const logsEndRef = useRef(null);
+
+            const generateQuestion = () => {
+                const dividend = Math.floor(Math.random() * 80) + 20;
+                const divisors = [];
+                while (divisors.length < 3) {
+                    const d = Math.floor(Math.random() * 8) + 2;
+                    if (!divisors.includes(d)) divisors.push(d);
+                }
+                setQuestion({ dividend, divisors });
+            };
+
+            useEffect(() => { generateQuestion(); }, []);
+
+            const addLog = (msg) => setLogs(prev => [...prev, msg]);
+            useEffect(() => { if (logsEndRef.current) logsEndRef.current.scrollIntoView({ behavior: 'smooth' }); }, [logs]);
+
+            const showFloatingText = (text, color, tileIndex) => {
+                const id = Date.now() + Math.random();
+                setFloatingTexts(prev => [...prev, { id, text, color, tileIndex }]);
+                setTimeout(() => setFloatingTexts(prev => prev.filter(ft => ft.id !== id)), 1500);
+            };
+
+            // --- 核心移动与结算逻辑 ---
+            const executeMove = (character, divisor) => {
+                const isPlayer = character.id === 'PLAYER';
+                const steps = question.dividend % divisor;
+                const earnedCoins = Math.floor(question.dividend / divisor);
+                
+                let newPos = character.pos + steps;
+                let passedGo = false;
+                if (newPos >= 20) { newPos = newPos % 20; passedGo = true; }
+
+                let newHp = character.hp;
+                let newCoins = character.coins + earnedCoins;
+                let logMsg = `[${character.name}] ${question.dividend}÷${divisor}=${earnedCoins}余${steps}。`;
+                logMsg += steps === 0 ? `原地不动，赚 ${earnedCoins} 金币。` : `前进 ${steps} 步，赚 ${earnedCoins} 金币。`;
+
+                let hpChange = 0;
+                let coinChange = earnedCoins;
+
+                if (passedGo) {
+                    newCoins += 20; coinChange += 20;
+                    logMsg += ' 经过起点，奖励 20 金币！';
+                }
+
+                const targetTile = board[newPos];
+                const newBoard = [...board];
+                let propertyValueAdded = 0;
+
+                // 格子事件结算
+                if (targetTile.type === 'MONSTER') {
+                    newHp -= 30; hpChange -= 30;
+                    logMsg += ' 😱 踩中怪兽！扣除 30 HP！';
+                    if (isPlayer) triggerDamage();
+                } else if (targetTile.type === 'TRAP') {
+                    const lostCoins = Math.floor(newCoins / 2);
+                    newCoins -= lostCoins; coinChange -= lostCoins;
+                    logMsg += ` 💣 踩中陷阱！损失一半金币 (${lostCoins})！`;
+                    if (isPlayer) triggerDamage();
+                } else if (targetTile.type === 'TREASURE') {
+                    newCoins += targetTile.reward; coinChange += targetTile.reward;
+                    logMsg += ` 💎 发现宝箱！获得 ${targetTile.reward} 金币！`;
+                } else if (targetTile.type === 'EMPTY') {
+                    // 买地逻辑 (玩家和AI都会自动买，只要钱够)
+                    if (newCoins >= targetTile.cost) {
+                        newCoins -= targetTile.cost; coinChange -= targetTile.cost;
+                        propertyValueAdded += targetTile.cost;
+                        newBoard[newPos] = { ...targetTile, type: 'OWNED', owner: character.id, level: 1 };
+                        logMsg += ` 🏠 花费 ${targetTile.cost} 金币购买了${targetTile.name}！`;
+                    } else {
+                        logMsg += ` 🌲 踩中${targetTile.name}，但金币不足(${targetTile.cost})。`;
+                    }
+                } else if (targetTile.type === 'OWNED') {
+                    if (targetTile.owner === character.id) {
+                        const healAmount = Math.min(100 - newHp, 20);
+                        newHp += healAmount; hpChange += healAmount;
+                        logMsg += ' 💖 回到自己的领地！恢复 20 HP！';
+                        // 升级逻辑
+                        if (targetTile.level === 1 && newCoins >= targetTile.cost) {
+                            newCoins -= targetTile.cost; coinChange -= targetTile.cost;
+                            propertyValueAdded += targetTile.cost;
+                            newBoard[newPos] = { ...targetTile, level: 2 };
+                            logMsg += ` 🏰 花费 ${targetTile.cost} 金币升级为城堡！`;
+                        }
+                    } else {
+                        // 踩到别人的地，扣过路费 (地皮价值的一半)
+                        const toll = Math.floor((targetTile.cost * targetTile.level) / 2);
+                        newCoins -= toll; coinChange -= toll;
+                        logMsg += ` 💸 踩中对手领地！支付 ${toll} 过路费！`;
+                        // 给对方加钱
+                        if (isPlayer) {
+                            setAi(prev => ({ ...prev, coins: prev.coins + toll, assets: prev.assets + toll }));
+                        } else {
+                            setPlayer(prev => ({ ...prev, coins: prev.coins + toll, assets: prev.assets + toll }));
+                        }
+                    }
+                }
+
+                // 飘字动画
+                if (steps === 0) setTimeout(() => showFloatingText(`原地不动`, 'text-slate-300', newPos), 0);
+                if (hpChange !== 0) setTimeout(() => showFloatingText(`${hpChange > 0 ? '+' : ''}${hpChange} HP`, hpChange > 0 ? 'text-green-400' : 'text-red-500', newPos), 200);
+                if (coinChange !== 0) setTimeout(() => showFloatingText(`${coinChange > 0 ? '+' : ''}${coinChange} 金币`, coinChange > 0 ? 'text-yellow-400' : 'text-orange-500', newPos), 400);
+
+                // 更新状态
+                const newAssets = character.assets + coinChange + propertyValueAdded;
+                const updatedChar = { ...character, pos: newPos, hp: newHp, coins: newCoins, assets: newAssets };
+                
+                setBoard(newBoard);
+                if (isPlayer) setPlayer(updatedChar); else setAi(updatedChar);
+                addLog(logMsg);
+
+                // 检查死亡
+                if (newHp <= 0) {
+                    setGameOver({ isOver: true, winner: isPlayer ? 'AI' : 'PLAYER', reason: `${character.name} 生命值耗尽！` });
+                    return;
+                }
+
+                // 回合流转
+                if (isPlayer) {
+                    setCurrentPlayer('AI');
+                } else {
+                    if (day >= MAX_DAYS) {
+                        // 游戏结束，结算资产
+                        const playerWin = player.assets >= updatedChar.assets;
+                        setGameOver({ 
+                            isOver: true, 
+                            winner: playerWin ? 'PLAYER' : 'AI', 
+                            reason: `30天期限已到！${playerWin ? '你' : '对手'}的资产更多！` 
+                        });
+                    } else {
+                        setDay(d => d + 1);
+                        setCurrentPlayer('PLAYER');
+                        generateQuestion();
+                    }
+                }
+            };
+
+            // --- AI 逻辑 ---
+            useEffect(() => {
+                if (currentPlayer === 'AI' && !gameOver.isOver) {
+                    const timer = setTimeout(() => {
+                        // 简单的贪心AI：选择能获得最多金币且不踩怪兽的卡牌
+                        let bestDivisor = question.divisors[0];
+                        let bestScore = -9999;
+
+                        question.divisors.forEach(d => {
+                            const steps = question.dividend % d;
+                            const coins = Math.floor(question.dividend / d);
+                            const targetPos = (ai.pos + steps) % 20;
+                            const tile = board[targetPos];
+                            
+                            let score = coins;
+                            if (tile.type === 'MONSTER') score -= 100; // 极力避免怪兽
+                            if (tile.type === 'TRAP') score -= 50;     // 避免陷阱
+                            if (tile.type === 'TREASURE') score += 30; // 喜欢宝箱
+                            if (tile.type === 'EMPTY' && ai.coins >= tile.cost) score += 20; // 喜欢买地
+                            
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestDivisor = d;
+                            }
+                        });
+
+                        executeMove(ai, bestDivisor);
+                    }, 1500); // AI 思考时间
+                    return () => clearTimeout(timer);
+                }
+            }, [currentPlayer, gameOver]);
+
+            const triggerDamage = () => { setShowDamage(true); setTimeout(() => setShowDamage(false), 500); };
+
+            const restartGame = () => {
+                setBoard(INITIAL_BOARD);
+                setPlayer({ id: 'PLAYER', name: '你', icon: '🧙‍♂️', pos: 0, hp: 100, coins: 50, assets: 50 });
+                setAi({ id: 'AI', name: '对手', icon: '🤖', pos: 0, hp: 100, coins: 50, assets: 50 });
+                setDay(1); setCurrentPlayer('PLAYER');
+                setLogs(['游戏重新开始！目标：存活30天，买下最多的地皮！']);
+                setGameOver({ isOver: false, winner: null, reason: '' });
+                generateQuestion();
+            };
+
+            // --- 渲染格子内容 ---
+            const renderTileContent = (tile) => {
+                switch (tile.type) {
+                    case 'START': return <IconArrowRight className="w-5 h-5 text-blue-600" />;
+                    case 'MONSTER': return <IconGhost className="w-5 h-5 text-red-500" />;
+                    case 'TRAP': return <IconBomb className="w-5 h-5 text-orange-500" />;
+                    case 'TREASURE': return (
+                        <div className="flex flex-col items-center">
+                            <IconGem className="w-4 h-4 text-yellow-400" />
+                            <span className="text-[8px] text-yellow-400 font-bold mt-0.5">+{tile.reward}</span>
+                        </div>
+                    );
+                    case 'EMPTY': return (
+                        <div className="flex flex-col items-center">
+                            <IconTreePine className={`w-4 h-4 opacity-60 ${tile.color}`} />
+                            <span className="text-[8px] text-green-400 font-bold mt-0.5">💰{tile.cost}</span>
+                        </div>
+                    );
+                    case 'OWNED': 
+                        const isPlayerOwned = tile.owner === 'PLAYER';
+                        const iconColor = isPlayerOwned ? 'text-blue-400' : 'text-red-400';
+                        return tile.level === 2 ? <IconCastle className={`w-5 h-5 ${iconColor}`} /> : <IconHome className={`w-5 h-5 ${iconColor}`} />;
+                    default: return null;
+                }
+            };
+
+            return (
+                <div className="min-h-[100dvh] bg-slate-900 text-slate-100 font-sans flex flex-col items-center p-2 overflow-hidden">
+                    
+                    {/* 顶部状态栏 (双人对比) */}
+                    <div className="w-full max-w-md bg-slate-800 rounded-xl shadow-lg mb-2 border border-slate-700 overflow-hidden flex flex-col">
+                        {/* 进度与目标 */}
+                        <div className="bg-slate-950/50 px-3 py-1.5 flex justify-between items-center border-b border-slate-700">
+                            <div className="text-xs font-bold text-slate-300">目标: 存活并赚取最多资产</div>
+                            <div className="text-xs font-black text-indigo-400 bg-indigo-900/30 px-2 py-0.5 rounded">Day {day} / {MAX_DAYS}</div>
+                        </div>
+                        
+                        {/* 双方数据对比 */}
+                        <div className="flex divide-x divide-slate-700">
+                            {/* 玩家状态 */}
+                            <div className={`flex-1 p-2 flex flex-col gap-1 ${currentPlayer === 'PLAYER' ? 'bg-blue-900/20' : ''}`}>
+                                <div className="flex items-center gap-1 text-xs font-bold text-blue-400">
+                                    <span>🧙‍♂️ 你</span>
+                                    {currentPlayer === 'PLAYER' && <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse ml-auto"></span>}
+                                </div>
+                                <div className="flex justify-between text-[10px] sm:text-xs">
+                                    <span className="flex items-center gap-0.5 text-red-400"><IconHeart className="w-3 h-3"/> {player.hp}</span>
+                                    <span className="flex items-center gap-0.5 text-yellow-400"><IconCoins className="w-3 h-3"/> {player.coins}</span>
+                                    <span className="flex items-center gap-0.5 text-green-400">总: {player.assets}</span>
+                                </div>
+                            </div>
+                            {/* AI状态 */}
+                            <div className={`flex-1 p-2 flex flex-col gap-1 ${currentPlayer === 'AI' ? 'bg-red-900/20' : ''}`}>
+                                <div className="flex items-center gap-1 text-xs font-bold text-red-400">
+                                    <span>🤖 对手</span>
+                                    {currentPlayer === 'AI' && <span className="text-[10px] text-red-300 ml-auto ai-thinking">思考中...</span>}
+                                </div>
+                                <div className="flex justify-between text-[10px] sm:text-xs">
+                                    <span className="flex items-center gap-0.5 text-red-400"><IconHeart className="w-3 h-3"/> {ai.hp}</span>
+                                    <span className="flex items-center gap-0.5 text-yellow-400"><IconCoins className="w-3 h-3"/> {ai.coins}</span>
+                                    <span className="flex items-center gap-0.5 text-green-400">总: {ai.assets}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 游戏主区域 (6x6 环形棋盘) */}
+                    <div className="relative w-full max-w-md aspect-square bg-slate-800 rounded-2xl shadow-xl border-2 border-slate-700 p-2 flex-shrink-0">
+                        {showDamage && <div className="absolute inset-0 bg-red-500/30 z-50 pointer-events-none rounded-xl animate-flash-red" />}
+
+                        <div className="w-full h-full grid grid-cols-6 grid-rows-6 gap-1 relative">
+                            {board.map((tile, index) => {
+                                const isPlayerHere = player.pos === index;
+                                const isAiHere = ai.pos === index;
+                                
+                                return (
+                                    <div 
+                                        key={tile.id} style={getTileGridStyle(index)}
+                                        className={`
+                                            relative flex flex-col items-center justify-center rounded-lg border transition-all
+                                            ${tile.type === 'START' ? 'bg-blue-900/50 border-blue-500' : ''}
+                                            ${tile.type === 'MONSTER' ? 'bg-red-900/30 border-red-800/50' : ''}
+                                            ${tile.type === 'TRAP' ? 'bg-orange-900/30 border-orange-800/50' : ''}
+                                            ${tile.type === 'TREASURE' ? 'bg-yellow-900/30 border-yellow-800/50' : ''}
+                                            ${tile.type === 'EMPTY' ? 'bg-slate-700/50 border-slate-600' : ''}
+                                            ${tile.type === 'OWNED' ? (tile.owner === 'PLAYER' ? 'bg-blue-900/40 border-blue-500' : 'bg-red-900/40 border-red-500') : ''}
+                                        `}
+                                    >
+                                        <span className="absolute top-0.5 left-1 text-[7px] font-bold text-slate-500">{index}</span>
+                                        {renderTileContent(tile)}
+                                        
+                                        {/* 棋子显示区 (支持双人同格) */}
+                                        <div className="absolute inset-0 pointer-events-none flex items-end justify-center pb-0.5 gap-0.5 z-20">
+                                            {isPlayerHere && <div className="text-sm sm:text-base animate-bounce-player drop-shadow-md">🧙‍♂️</div>}
+                                            {isAiHere && <div className="text-sm sm:text-base animate-bounce-player drop-shadow-md" style={{animationDelay: '0.3s'}}>🤖</div>}
+                                        </div>
+
+                                        {/* 飘字动画容器 (绑定在格子上) */}
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 pointer-events-none flex flex-col items-center z-50">
+                                            {floatingTexts.filter(ft => ft.tileIndex === index).map(ft => (
+                                                <div key={ft.id} className={`absolute bottom-0 text-xs sm:text-sm font-black whitespace-nowrap drop-shadow-md animate-float-up-text ${ft.color}`} style={{ textShadow: '0 0 2px black' }}>
+                                                    {ft.text}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            {/* 中央控制台 */}
+                            <div className="col-start-2 col-end-6 row-start-2 row-end-6 bg-slate-900/90 rounded-xl border border-slate-700 flex flex-col items-center justify-center p-2 shadow-inner relative overflow-hidden">
+                                <div className="absolute inset-0 opacity-5 pointer-events-none flex items-center justify-center"><IconSwords className="w-32 h-32" /></div>
+
+                                {gameOver.isOver ? (
+                                    <div className="text-center z-10 px-2">
+                                        <h2 className={`text-2xl font-black mb-1 ${gameOver.winner === 'PLAYER' ? 'text-yellow-400' : 'text-red-500'}`}>
+                                            {gameOver.winner === 'PLAYER' ? '🏆 你赢了！' : '💀 你输了！'}
+                                        </h2>
+                                        <p className="text-xs text-slate-300 mb-3">{gameOver.reason}</p>
+                                        <div className="flex justify-center gap-4 mb-4 text-xs">
+                                            <div className="text-blue-400">你: {player.assets} 资产</div>
+                                            <div className="text-red-400">对手: {ai.assets} 资产</div>
+                                        </div>
+                                        <button onClick={restartGame} className="px-5 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg shadow-lg active:scale-95">再来一局</button>
+                                    </div>
+                                ) : (
+                                    <div className={`w-full flex flex-col items-center z-10 transition-opacity ${currentPlayer === 'AI' ? 'opacity-50 pointer-events-none' : ''}`}>
+                                        <div className="text-[10px] text-slate-400 font-bold tracking-widest mb-0.5 uppercase">被除数 (目标)</div>
+                                        <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400 drop-shadow-xl mb-2">
+                                            {question.dividend}
+                                        </div>
+                                        
+                                        <div className="text-[10px] text-slate-400 font-bold tracking-widest mb-1.5 uppercase">选择除数卡牌</div>
+                                        <div className="flex gap-2 w-full justify-center">
+                                            {question.divisors.map((d, i) => (
+                                                <button
+                                                    key={i} onClick={() => executeMove(player, d)} disabled={currentPlayer === 'AI'}
+                                                    className="card-active relative w-14 h-20 rounded-xl border border-indigo-500/30 bg-gradient-to-b from-slate-800 to-slate-900 overflow-hidden shadow-md flex flex-col"
+                                                >
+                                                    <div className="absolute top-0 inset-x-0 h-4 bg-indigo-900/40 border-b border-indigo-500/30 flex items-center justify-center">
+                                                        <span className="text-[8px] text-indigo-300 font-bold uppercase scale-75">Divisor</span>
+                                                    </div>
+                                                    <div className="flex-1 flex items-center justify-center mt-4">
+                                                        <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-indigo-300">{d}</span>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="mt-2 text-[9px] text-slate-500 text-center leading-tight">
+                                            <span className="text-blue-400 font-bold">提示:</span> 余数=步数，商=金币。
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 底部日志区域 */}
+                    <div className="w-full max-w-md mt-2 bg-slate-800 rounded-xl p-2 border border-slate-700 shadow-lg flex-1 min-h-[80px] max-h-[120px] flex flex-col">
+                        <div className="space-y-1 overflow-y-auto pr-1 custom-scrollbar flex-1">
+                            {logs.map((log, i) => (
+                                <div key={i} className={`text-[10px] sm:text-xs p-1 rounded ${i === logs.length - 1 ? 'bg-slate-700/50 text-white font-medium border-l-2 border-blue-500' : 'text-slate-400'}`}>
+                                    {log}
+                                </div>
+                            ))}
+                            <div ref={logsEndRef} />
+                        </div>
+                    </div>
+
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import RumProvider from './components/RumProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -16,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" className="scroll-smooth">
       <body className="antialiased" style={{ backgroundColor: '#F5F7FC', color: '#0A0A0A' }}>
-        <RumProvider />{children}
+        {children}
       </body>
     </html>
   );
