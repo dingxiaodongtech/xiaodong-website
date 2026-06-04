@@ -1,0 +1,1911 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>知识星河 · 3D Knowledge Universe</title>
+
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   知识星河 · 3D 宇宙版
+   Three.js + d3-force-3d + 后期辉光
+═══════════════════════════════════════════════════════════════ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+    height: 100%; width: 100%; overflow: hidden;
+    font-family: 'PingFang SC', 'Microsoft YaHei', 'Inter', -apple-system, sans-serif;
+    background: #000; color: #e6edf8;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+}
+/* 极远层深空渐变 */
+body::before {
+    content: ''; position: fixed; inset: 0; z-index: -3;
+    background:
+        radial-gradient(ellipse 80% 60% at 30% 25%, rgba(88, 28, 135, 0.35), transparent 55%),
+        radial-gradient(ellipse 60% 70% at 75% 75%, rgba(6, 182, 212, 0.25), transparent 55%),
+        radial-gradient(circle at 50% 50%, #0b1029 0%, #000 75%);
+}
+/* 细颗粒噪点，减少色带 */
+body::after {
+    content: ''; position: fixed; inset: 0; z-index: -2;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+    opacity: 0.4; mix-blend-mode: overlay; pointer-events: none;
+}
+
+#starfield { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+#canvas-root { position: fixed; inset: 0; z-index: 1; }
+#canvas-root canvas { display: block; }
+
+/* ───────── 品牌栏 ───────── */
+.brand-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 20px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    pointer-events: none;
+}
+.brand { display: flex; align-items: center; gap: 16px; pointer-events: auto; }
+.brand .orb {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #fff, #00d4ff 40%, #7c3aed 80%);
+    box-shadow:
+        0 0 24px rgba(0, 212, 255, 0.7),
+        0 0 48px rgba(124, 58, 237, 0.5),
+        inset -4px -4px 10px rgba(0, 0, 0, 0.4);
+    animation: orb-pulse 3.8s ease-in-out infinite;
+    position: relative;
+}
+.brand .orb::before, .brand .orb::after {
+    content: ''; position: absolute; inset: -8px; border-radius: 50%;
+    border: 1px solid rgba(165, 180, 252, 0.35);
+    animation: orb-ring 3.8s ease-out infinite;
+}
+.brand .orb::after { animation-delay: 1.9s; }
+@keyframes orb-pulse {
+    0%, 100% { transform: scale(1); filter: brightness(1); }
+    50%      { transform: scale(1.08); filter: brightness(1.3); }
+}
+@keyframes orb-ring {
+    0%   { transform: scale(1); opacity: 0.7; }
+    100% { transform: scale(2); opacity: 0; }
+}
+.brand h1 {
+    font-size: 26px; font-weight: 700; letter-spacing: 1px;
+    background: linear-gradient(135deg, #e0f2fe 20%, #a5b4fc 60%, #f0abfc 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.brand .sub {
+    font-size: 11px; letter-spacing: 3px; color: #94a3b8; text-transform: uppercase; margin-top: 2px;
+}
+
+.stats { display: flex; gap: 12px; pointer-events: auto; }
+.stat {
+    padding: 10px 18px; min-width: 108px; position: relative; overflow: hidden;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(22px) saturate(180%);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 14px;
+    transition: transform 0.3s, border-color 0.3s;
+}
+.stat::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(165, 180, 252, 0.6), transparent);
+}
+.stat:hover { transform: translateY(-2px); border-color: rgba(165, 180, 252, 0.45); }
+.stat .num {
+    font-size: 26px; font-weight: 700; line-height: 1;
+    background: linear-gradient(135deg, #e0f2fe, #7dd3fc 60%, #a78bfa);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    font-variant-numeric: tabular-nums;
+}
+.stat .lbl { font-size: 11px; color: #94a3b8; margin-top: 4px; letter-spacing: 1px; }
+
+/* ───────── 星系导航 ───────── */
+.galaxy-nav {
+    position: fixed; left: 24px; top: 50%; transform: translateY(-50%); z-index: 90;
+    width: 228px; padding: 18px;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 18px; pointer-events: auto;
+}
+.galaxy-nav h3 {
+    font-size: 11px; color: #94a3b8; letter-spacing: 3px; text-transform: uppercase;
+    margin-bottom: 14px; padding-bottom: 10px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+.galaxy {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; margin-bottom: 4px;
+    border-radius: 10px; cursor: pointer;
+    transition: all 0.25s; position: relative;
+}
+.galaxy:hover { background: rgba(148, 163, 184, 0.08); transform: translateX(4px); }
+.galaxy.active {
+    background: linear-gradient(90deg, rgba(148, 163, 184, 0.14), transparent);
+    border-left: 2px solid var(--c, #a5b4fc); padding-left: 10px;
+}
+.galaxy-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--c); flex-shrink: 0;
+    box-shadow: 0 0 10px var(--c), 0 0 22px var(--c);
+    animation: galaxy-breath 3.5s ease-in-out infinite;
+}
+@keyframes galaxy-breath {
+    0%, 100% { transform: scale(1); filter: brightness(1); }
+    50%      { transform: scale(1.15); filter: brightness(1.4); }
+}
+.g-name { font-size: 14px; color: #e6edf8; font-weight: 500; }
+.g-stat { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+/* ───────── 右侧面板（pitch / focus 两种状态） ───────── */
+.right-panel {
+    position: fixed; right: 24px; top: 110px; z-index: 90;
+    width: 318px;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(26px) saturate(180%);
+    -webkit-backdrop-filter: blur(26px) saturate(180%);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 18px;
+    pointer-events: auto;
+    overflow: hidden;
+    transition: border-color 0.4s, box-shadow 0.4s;
+}
+.right-panel.focused {
+    border-color: rgba(165, 180, 252, 0.35);
+    box-shadow: 0 0 40px rgba(124, 58, 237, 0.25), 0 0 60px rgba(6, 182, 212, 0.15);
+}
+.panel-section { padding: 20px; display: none; }
+.panel-section.active { display: block; }
+.panel-head {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 11px; color: #c7d2fe; letter-spacing: 3px; text-transform: uppercase;
+    margin-bottom: 14px; padding-bottom: 12px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+.pulse-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #34d399; box-shadow: 0 0 12px #34d399;
+    animation: pulse-dot 1.6s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%      { transform: scale(1.5); opacity: 0.65; }
+}
+
+/* pitch 状态 */
+.pitch-slot { min-height: 200px; position: relative; }
+.pitch-slide {
+    position: absolute; inset: 0; opacity: 0;
+    transition: opacity 0.7s;
+}
+.pitch-slide.active { opacity: 1; }
+.pitch-slide .big-num {
+    font-size: 52px; font-weight: 800; line-height: 1; margin-bottom: 8px;
+    background: linear-gradient(135deg, #e0f2fe 20%, #7dd3fc 50%, #c4b5fd 80%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    font-variant-numeric: tabular-nums;
+}
+.big-unit { display: inline-block; font-size: 16px; color: #94a3b8; margin-left: 6px; }
+.big-title { font-size: 16px; color: #e6edf8; margin-bottom: 8px; font-weight: 600; }
+.big-desc { font-size: 12px; color: #94a3b8; line-height: 1.7; }
+.big-desc b { color: #c7d2fe; font-weight: 600; }
+.pitch-dots {
+    display: flex; gap: 6px; justify-content: center; margin-top: 16px;
+    padding-top: 12px; border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+.pitch-dots span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: rgba(148, 163, 184, 0.3); cursor: pointer;
+    transition: all 0.3s;
+}
+.pitch-dots span.active {
+    background: #a5b4fc; box-shadow: 0 0 8px #a5b4fc;
+    width: 18px; border-radius: 3px;
+}
+
+/* focus 状态 */
+.focus-title {
+    font-size: 20px; font-weight: 700; color: #f1f5f9;
+    margin-bottom: 6px; display: flex; align-items: center; gap: 10px;
+    line-height: 1.3;
+}
+.focus-title::before {
+    content: ''; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    background: var(--fc, #a5b4fc);
+    box-shadow: 0 0 12px var(--fc, #a5b4fc);
+    animation: focus-pulse 1.8s ease-in-out infinite;
+}
+@keyframes focus-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%      { transform: scale(1.3); opacity: 0.7; }
+}
+.focus-path { font-size: 11px; color: #94a3b8; margin-bottom: 14px; letter-spacing: 0.3px; }
+.focus-feats { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 14px; }
+.focus-feat {
+    font-size: 10px; padding: 2px 8px;
+    background: rgba(124, 58, 237, 0.15);
+    border: 1px solid rgba(165, 180, 252, 0.25);
+    color: #c4b5fd; border-radius: 8px;
+}
+.focus-meta {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    padding: 10px 0; margin-bottom: 12px;
+    border-top: 1px solid rgba(148, 163, 184, 0.12);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    font-size: 11px;
+}
+.focus-meta-item { color: #94a3b8; }
+.focus-meta-item b {
+    color: #e6edf8; font-variant-numeric: tabular-nums;
+    font-size: 14px; margin-right: 4px;
+}
+.focus-section-title {
+    font-size: 10px; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase;
+    margin: 14px 0 8px; display: flex; align-items: center; gap: 8px;
+}
+.focus-section-title::after {
+    content: ''; flex: 1; height: 1px; background: rgba(148, 163, 184, 0.1);
+}
+.related-list { max-height: 180px; overflow-y: auto; margin: 0 -6px; padding: 0 6px; }
+.related-list::-webkit-scrollbar { width: 4px; }
+.related-list::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.25); border-radius: 2px; }
+.related-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px; margin-bottom: 2px;
+    border-radius: 6px; cursor: pointer; font-size: 12px;
+    color: #cbd5e1; transition: all 0.2s;
+}
+.related-item:hover {
+    background: rgba(148, 163, 184, 0.08);
+    color: #f1f5f9; transform: translateX(3px);
+}
+.related-item .ri-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+    background: var(--c); box-shadow: 0 0 6px var(--c);
+}
+.btn-close-focus {
+    width: 100%; padding: 8px; margin-top: 12px;
+    background: rgba(148, 163, 184, 0.08);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 8px;
+    color: #cbd5e1; font-size: 12px; cursor: pointer;
+    transition: all 0.25s;
+}
+.btn-close-focus:hover {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #fecaca;
+}
+
+/* ───────── 底部命令坞 ───────── */
+.command-dock {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 100;
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 16px;
+    pointer-events: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.command-dock input {
+    width: 260px; padding: 9px 14px;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 10px;
+    color: #e6edf8; font-size: 13px; outline: none;
+    transition: border-color 0.3s;
+}
+.command-dock input:focus {
+    border-color: rgba(165, 180, 252, 0.5);
+    box-shadow: 0 0 0 3px rgba(165, 180, 252, 0.12);
+}
+.command-dock input::placeholder { color: #64748b; }
+.dock-btn {
+    padding: 9px 14px;
+    background: rgba(148, 163, 184, 0.08);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 10px;
+    color: #c7d2fe; font-size: 12px; cursor: pointer;
+    transition: all 0.25s; white-space: nowrap;
+}
+.dock-btn:hover {
+    background: rgba(165, 180, 252, 0.15);
+    border-color: rgba(165, 180, 252, 0.4);
+    color: #e0f2fe; transform: translateY(-1px);
+}
+.dock-btn.primary {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.3), rgba(6, 182, 212, 0.3));
+    border-color: rgba(165, 180, 252, 0.35);
+    color: #f1f5f9;
+}
+.dock-btn.primary:hover {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.55), rgba(6, 182, 212, 0.55));
+    box-shadow: 0 0 20px rgba(165, 180, 252, 0.35);
+}
+.dock-btn.active {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.45), rgba(6, 182, 212, 0.45));
+    border-color: rgba(165, 180, 252, 0.5);
+    color: #fff;
+}
+
+/* ───────── 悬停 tooltip ───────── */
+.hover-card {
+    position: fixed; z-index: 120;
+    padding: 10px 14px; max-width: 260px;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(165, 180, 252, 0.25);
+    border-radius: 10px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 28px rgba(124, 58, 237, 0.2);
+    opacity: 0; transform: translateY(6px); pointer-events: none;
+    transition: opacity 0.18s, transform 0.18s;
+}
+.hover-card.show { opacity: 1; transform: translateY(0); }
+.hover-card .hc-title {
+    font-size: 13px; font-weight: 700; color: #f1f5f9;
+    display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+}
+.hover-card .hc-title::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--hc, #a5b4fc);
+    box-shadow: 0 0 8px var(--hc, #a5b4fc);
+}
+.hover-card .hc-path {
+    font-size: 10px; color: #94a3b8; letter-spacing: 0.3px;
+}
+
+/* ───────── 提示 ───────── */
+.hint {
+    position: fixed; left: 24px; bottom: 28px; z-index: 90;
+    font-size: 11px; color: #64748b; letter-spacing: 0.3px; line-height: 1.8;
+    pointer-events: none;
+}
+.hint kbd {
+    padding: 1px 6px; font-size: 10px;
+    background: rgba(148, 163, 184, 0.1);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 4px; color: #c7d2fe;
+}
+
+/* ───────── Intro 开场 ───────── */
+.intro-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: radial-gradient(circle at center, #0b1029 0%, #000 70%);
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 1.4s ease-in-out;
+}
+.intro-overlay.fade-out { opacity: 0; pointer-events: none; }
+.intro-content { text-align: center; }
+.intro-content .big-dot {
+    width: 130px; height: 130px; margin: 0 auto 32px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff, #00d4ff 32%, #7c3aed 72%, #000 100%);
+    box-shadow:
+        0 0 80px rgba(0, 212, 255, 0.55),
+        0 0 160px rgba(124, 58, 237, 0.45);
+    animation: intro-pulse 2.6s ease-in-out infinite;
+    position: relative;
+}
+.intro-content .big-dot::before,
+.intro-content .big-dot::after {
+    content: ''; position: absolute; inset: -25px; border-radius: 50%;
+    border: 1px solid rgba(165, 180, 252, 0.4);
+    animation: ring-expand 3.2s ease-out infinite;
+}
+.intro-content .big-dot::after { animation-delay: 1.6s; }
+@keyframes intro-pulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.08); filter: brightness(1.25); }
+}
+@keyframes ring-expand {
+    0%   { transform: scale(1); opacity: 0.7; }
+    100% { transform: scale(2.6); opacity: 0; }
+}
+.intro-content h1 {
+    font-size: 54px; font-weight: 800; letter-spacing: 5px; margin-bottom: 12px;
+    background: linear-gradient(135deg, #e0f2fe, #7dd3fc 40%, #c4b5fd 70%, #f0abfc);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: title-in 1.5s ease-out;
+}
+.intro-content .en {
+    font-size: 13px; letter-spacing: 6px; color: #94a3b8;
+    text-transform: uppercase; margin-bottom: 22px;
+    animation: title-in 1.5s ease-out 0.3s both;
+}
+.intro-content p { font-size: 14px; color: #c7d2fe; animation: title-in 1.5s ease-out 0.6s both; }
+@keyframes title-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ───────── 响应式 ───────── */
+@media (max-width: 1200px) {
+    .galaxy-nav { width: 200px; left: 16px; }
+    .right-panel { width: 272px; right: 16px; }
+}
+@media (max-width: 900px) {
+    .galaxy-nav, .right-panel { display: none; }
+    .brand h1 { font-size: 20px; }
+    .stats { gap: 8px; }
+    .stat { min-width: 78px; padding: 8px 12px; }
+    .stat .num { font-size: 20px; }
+}
+/* 精简模式：隐藏所有 UI 覆盖层，仅保留 3D 画布 */
+.brand-bar, .galaxy-nav, .right-panel, .command-dock, .hint, .intro-overlay, .hover-card { display: none !important; }
+</style>
+
+<!-- Three.js 模块映射（本地 vendor，无需外网） -->
+<script type="importmap">
+{
+    "imports": {
+        "three": "./vendor/three/three.module.js",
+        "three/addons/": "./vendor/three/addons/"
+    }
+}
+</script>
+<!-- 完整 d3 v7 bundle（提供 dispatch/timer/quadtree/select/zoom 等全部模块） -->
+<script src="./vendor/d3.v7.min.js"></script>
+<!-- 3D 专用扩展（d3-force-3d 的额外 peer dep） -->
+<script src="./vendor/d3-binarytree.min.js"></script>
+<script src="./vendor/d3-octree.min.js"></script>
+<!-- d3-force-3d：在最后加载，覆盖 d3 的 2D force 函数为 3D 版本 -->
+<script src="./vendor/d3-force-3d.min.js"></script>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+<div id="canvas-root"></div>
+
+<header class="brand-bar">
+    <div class="brand">
+        <div class="orb"></div>
+        <div>
+            <h1>知识星河</h1>
+            <div class="sub">3D KNOWLEDGE UNIVERSE · ELEMENTARY MATH</div>
+        </div>
+    </div>
+    <div class="stats">
+        <div class="stat"><div class="num" id="stat-nodes">0</div><div class="lbl">知识星点</div></div>
+        <div class="stat"><div class="num" id="stat-edges">0</div><div class="lbl">依赖脉络</div></div>
+        <div class="stat"><div class="num" id="stat-roots">0</div><div class="lbl">起始源点</div></div>
+        <div class="stat"><div class="num" id="stat-depth">0</div><div class="lbl">最深依赖层</div></div>
+    </div>
+</header>
+
+<aside class="galaxy-nav">
+    <h3>四大星系</h3>
+    <div class="galaxy active" data-l1="all">
+        <div class="galaxy-dot" style="--c:#a5b4fc"></div>
+        <div><div class="g-name">全部星系</div><div class="g-stat" id="g-all">—</div></div>
+    </div>
+    <div class="galaxy" data-l1="数与代数">
+        <div class="galaxy-dot" style="--c:#00d4ff"></div>
+        <div><div class="g-name">数与代数</div><div class="g-stat" id="g-1">—</div></div>
+    </div>
+    <div class="galaxy" data-l1="图形与几何">
+        <div class="galaxy-dot" style="--c:#34d399"></div>
+        <div><div class="g-name">图形与几何</div><div class="g-stat" id="g-2">—</div></div>
+    </div>
+    <div class="galaxy" data-l1="统计与概率">
+        <div class="galaxy-dot" style="--c:#fbbf24"></div>
+        <div><div class="g-name">统计与概率</div><div class="g-stat" id="g-3">—</div></div>
+    </div>
+    <div class="galaxy" data-l1="综合与实践">
+        <div class="galaxy-dot" style="--c:#c084fc"></div>
+        <div><div class="g-name">综合与实践</div><div class="g-stat" id="g-4">—</div></div>
+    </div>
+</aside>
+
+<aside class="right-panel" id="right-panel">
+    <!-- Pitch 状态 -->
+    <div class="panel-section active" id="panel-pitch">
+        <div class="panel-head"><div class="pulse-dot"></div><span>投资亮点 · Highlights</span></div>
+        <div class="pitch-slot" id="pitch-slot"></div>
+        <div class="pitch-dots" id="pitch-dots"></div>
+    </div>
+    <!-- Focus 状态 -->
+    <div class="panel-section" id="panel-focus">
+        <div class="panel-head"><div class="pulse-dot"></div><span>焦点星点 · Focused Node</span></div>
+        <div id="focus-body"></div>
+    </div>
+</aside>
+
+<div class="command-dock">
+    <input id="search" placeholder="搜索知识星点 · 如"分数、进位、面积"..." />
+    <button class="dock-btn primary" id="btn-auto">⟲ 自转</button>
+    <button class="dock-btn" id="btn-reset">↻ 重置视角</button>
+</div>
+
+<div class="hover-card" id="hover-card"></div>
+
+<div class="hint">
+    左键旋转 · 滚轮缩放 · 右键平移 · 点击星点聚焦 · <kbd>Esc</kbd> 退出
+</div>
+
+<div class="intro-overlay" id="intro">
+    <div class="intro-content">
+        <div class="big-dot"></div>
+        <h1>知识星河</h1>
+        <div class="en">3D KNOWLEDGE UNIVERSE</div>
+        <p>406 知识星点 · 378 条依赖血脉 · 在三维宇宙中探索小学数学的全貌</p>
+        <p id="intro-hint" style="margin-top:24px;font-size:11px;letter-spacing:2px;color:rgba(167,139,250,.6);">点击任意位置进入 · Loading…</p>
+    </div>
+</div>
+
+<!-- 兜底脚本：即使主模块加载失败，也能跳过 Intro 并给出可见反馈 -->
+<script>
+(function () {
+    var intro = document.getElementById('intro');
+    if (!intro) return;
+
+    var dismissed = false;
+    function dismiss() {
+        if (dismissed) return;
+        dismissed = true;
+        intro.classList.add('fade-out');
+        setTimeout(function () { intro.style.display = 'none'; }, 1600);
+    }
+
+    // 点击 / 按键 跳过
+    intro.addEventListener('click', dismiss);
+    window.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') dismiss();
+    });
+
+    // 兜底：5 秒后无论如何都让用户进入
+    setTimeout(dismiss, 5000);
+
+    // 脚本错误可见化
+    window.addEventListener('error', function (e) {
+        var hint = document.getElementById('intro-hint');
+        if (hint) {
+            hint.style.color = '#f87171';
+            hint.textContent = '资源加载失败：' + (e.message || 'unknown') + ' · 点击继续';
+        }
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+        var hint = document.getElementById('intro-hint');
+        if (hint) {
+            hint.style.color = '#f87171';
+            hint.textContent = '模块异常：' + (e.reason && e.reason.message ? e.reason.message : e.reason) + ' · 点击继续';
+        }
+    });
+})();
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+/* ═══════════════════════════════════════════════════════════════
+   1. CSV 数据
+═══════════════════════════════════════════════════════════════ */
+const CSV_RAW = `L1模块,L2主题,L3核心概念,L4原子知识点,特征,前置依赖节点
+数与代数,整数认识与加减法(20以内),数数,10以内点数,数数,
+数与代数,整数认识与加减法(20以内),比多少,一一对应比多少,比多少,
+数与代数,整数认识与加减法(20以内),1~5的认识,1~5的基数意义,基数,
+数与代数,整数认识与加减法(20以内),1~5的认识,1~5的序数意义,序数,1~5的基数意义
+数与代数,整数认识与加减法(20以内),1~5的认识,1~5的读写,读写,1~5的基数意义
+数与代数,整数认识与加减法(20以内),比大小,1~5的比大小,比大小,1~5的基数意义
+数与代数,整数认识与加减法(20以内),分与合,2~5的分与合,分与合,1~5的基数意义
+数与代数,整数认识与加减法(20以内),1~5的加法,1~5的加法(和在5以内),不进位,2~5的分与合
+数与代数,整数认识与加减法(20以内),1~5的减法,1~5的减法(被减数在5以内),不退位,2~5的分与合
+数与代数,整数认识与加减法(20以内),0的认识,0的基数意义,基数,
+数与代数,整数认识与加减法(20以内),有关0的加减法,任何数加0等于原数,一个数是0,0的基数意义
+数与代数,整数认识与加减法(20以内),有关0的加减法,任何数减0等于原数,一个数是0,0的基数意义
+数与代数,整数认识与加减法(20以内),有关0的加减法,相同数相减等于0,同数相减,0的基数意义
+数与代数,整数认识与加减法(20以内),6~10的认识,6~10的基数与序数意义,基数|序数,1~5的序数意义
+数与代数,整数认识与加减法(20以内),6~10的认识,6~10的读写,读写,6~10的基数与序数意义
+数与代数,整数认识与加减法(20以内),6~10的比大小,6~10的比大小,比大小,1~5的比大小
+数与代数,整数认识与加减法(20以内),分与合,6~10的分与合,分与合,2~5的分与合
+数与代数,整数认识与加减法(20以内),10以内的加法,6~10的加法(和在10以内),不进位,6~10的分与合
+数与代数,整数认识与加减法(20以内),10以内的减法,6~10的减法(被减数在10以内),不退位,6~10的分与合
+数与代数,整数认识与加减法(20以内),连加连减,10以内的连加,不进位,10以内的加法
+数与代数,整数认识与加减法(20以内),连加连减,10以内的连减,不退位,10以内的减法
+数与代数,整数认识与加减法(20以内),加减混合,10以内的加减混合,无,连加连减
+数与代数,整数认识与加减法(20以内),11~20的认识,11~20的组成,组成,6~10的认识
+数与代数,整数认识与加减法(20以内),11~20的认识,11~20的读写,读写,11~20的组成
+数与代数,整数认识与加减法(20以内),11~20的比大小,11~20的比大小,比大小,11~20的读写
+数与代数,整数认识与加减法(20以内),10加几及相应的减法,10加几(不进位),不进位,11~20的组成
+数与代数,整数认识与加减法(20以内),10加几及相应的减法,十几加几(不进位),不进位,10加几(不进位)
+数与代数,整数认识与加减法(20以内),10加几及相应的减法,十几减几(不退位),不退位,十几加几(不进位)
+数与代数,整数认识与加减法(20以内),10加几及相应的减法,十几减十,不退位,11~20的组成
+数与代数,整数认识与加减法(20以内),凑十法,凑十法的算理(十进制凑整原理),意义,11~20的组成
+数与代数,整数认识与加减法(20以内),凑十法,凑十法的算法(拆小数凑大数),无,凑十法的算理(十进制凑整原理)
+数与代数,整数认识与加减法(20以内),凑十法,凑十法的算法(拆大数凑小数),无,凑十法的算理(十进制凑整原理)
+数与代数,整数认识与加减法(20以内),20以内进位加法,9加几,进位,凑十法的算法(拆小数凑大数)
+数与代数,整数认识与加减法(20以内),20以内进位加法,8/7/6加几,进位,凑十法的算法(拆小数凑大数)
+数与代数,整数认识与加减法(20以内),20以内进位加法,5/4/3/2加几,进位,凑十法的算法(拆大数凑小数)
+数与代数,整数认识与加减法(20以内),破十法,破十法的算理(退位的数学本质),意义,11~20的组成
+数与代数,整数认识与加减法(20以内),破十法,破十法的算法(退一当十再减),无,破十法的算理(退位的数学本质)
+数与代数,整数认识与加减法(20以内),平十法,平十法的算理(连减转化原理),意义,11~20的组成
+数与代数,整数认识与加减法(20以内),平十法,平十法的算法(先减到整十再减),无,平十法的算理(连减转化原理)
+数与代数,整数认识与加减法(20以内),20以内退位减法,十几减9,退位,破十法的算法(退一当十再减)
+数与代数,整数认识与加减法(20以内),20以内退位减法,十几减8/7/6,退位,破十法的算法(退一当十再减)
+数与代数,整数认识与加减法(20以内),20以内退位减法,十几减5/4/3/2,退位,破十法的算法(退一当十再减)
+数与代数,整数认识与加减法(20以内),加减法简单应用模型,合并模型(求总数),无,10以内的加法
+数与代数,整数认识与加减法(20以内),加减法简单应用模型,去掉模型(求剩余),无,10以内的减法
+数与代数,整数认识与加减法(20以内),加减法简单应用模型,比多比少模型(初步),无,合并模型(求总数)
+数与代数,整数认识与加减法(100以内),100以内数的认识,100以内数的数法,数数,11~20的组成
+数与代数,整数认识与加减法(100以内),100以内数的认识,100以内数的组成,组成,100以内数的数法
+数与代数,整数认识与加减法(100以内),100以内数的认识,100以内数的读写,读写,100以内数的组成
+数与代数,整数认识与加减法(100以内),100以内数的比大小,100以内数的比大小,比大小,100以内数的读写
+数与代数,整数认识与加减法(100以内),整十数加减法,整十数加整十数,不进位|进位,100以内数的组成
+数与代数,整数认识与加减法(100以内),整十数加减法,整十数减整十数,不退位|退位,整十数加整十数
+数与代数,整数认识与加减法(100以内),两位数加一位数/整十数,两位数加整十数(不进位),不进位,整十数加整十数
+数与代数,整数认识与加减法(100以内),两位数加一位数/整十数,两位数加一位数(不进位),不进位,整十数加整十数
+数与代数,整数认识与加减法(100以内),两位数加一位数/整十数,两位数加一位数(进位),进位,凑十法的算理(十进制凑整原理)
+数与代数,整数认识与加减法(100以内),两位数减一位数/整十数,两位数减整十数(不退位),不退位,整十数减整十数
+数与代数,整数认识与加减法(100以内),两位数减一位数/整十数,两位数减一位数(不退位),不退位,整十数减整十数
+数与代数,整数认识与加减法(100以内),两位数减一位数/整十数,两位数减一位数(退位),退位,破十法的算理(退位的数学本质)
+图形与几何,立体图形的初步认识,认识立体图形,长方体的直观特征,认识,
+图形与几何,立体图形的初步认识,认识立体图形,正方体的直观特征,认识,
+图形与几何,立体图形的初步认识,认识立体图形,圆柱的直观特征,认识,
+图形与几何,立体图形的初步认识,认识立体图形,球的直观特征,认识,
+图形与几何,平面图形的初步认识,认识平面图形,长方形的直观特征,认识,
+图形与几何,平面图形的初步认识,认识平面图形,正方形的直观特征,认识,
+图形与几何,平面图形的初步认识,认识平面图形,三角形的直观特征,认识,
+图形与几何,平面图形的初步认识,认识平面图形,圆的直观特征,认识,
+图形与几何,平面图形的初步认识,认识平面图形,平行四边形的直观特征,认识,
+图形与几何,图形的拼组,平面图形的拼组,用相同平面图形拼组,无,认识平面图形
+图形与几何,图形的拼组,立体图形的拼组,用相同立体图形拼组,无,认识立体图形
+数与代数,整数加减法(100以内进阶),两位数加两位数,两位数加两位数(不进位),不进位,两位数加一位数(不进位)
+数与代数,整数加减法(100以内进阶),两位数加两位数,两位数加两位数(进位),不连续进位,两位数加一位数(进位)
+数与代数,整数加减法(100以内进阶),两位数减两位数,两位数减两位数(不退位),不退位,两位数减一位数(不退位)
+数与代数,整数加减法(100以内进阶),两位数减两位数,两位数减两位数(退位),不连续退位,两位数减一位数(退位)
+数与代数,整数加减法(100以内进阶),加减法的验算,加法的验算(交换加数/用减法验算),无,两位数加两位数(进位)
+数与代数,整数加减法(100以内进阶),加减法的验算,减法的验算(用加法验算),无,两位数减两位数(退位)
+数与代数,整数加减法(100以内进阶),连加连减与混合,100以内的连加计算,不连续进位|连续进位,两位数加两位数(进位)
+数与代数,整数加减法(100以内进阶),连加连减与混合,100以内的连减计算,不连续退位|连续退位,两位数减两位数(退位)
+数与代数,整数加减法(100以内进阶),连加连减与混合,100以内的加减混合计算,无,100以内的连加计算
+数与代数,整数加减法(100以内进阶),加减法应用模型(进阶),比多比少问题(求大数),无,合并模型(求总数)
+数与代数,整数加减法(100以内进阶),加减法应用模型(进阶),比多比少问题(求小数),无,去掉模型(求剩余)
+数与代数,整数加减法(100以内进阶),加减法应用模型(进阶),比多比少问题(求相差数),无,去掉模型(求剩余)
+数与代数,表内乘法,乘法的初步认识,乘法的意义(相同加数连加的简便运算),意义,
+数与代数,表内乘法,乘法的初步认识,乘法算式的各部分名称,认识,乘法的意义(相同加数连加的简便运算)
+数与代数,表内乘法,乘法口诀,1~5的乘法口诀,无,乘法算式的各部分名称
+数与代数,表内乘法,乘法口诀,6~9的乘法口诀,无,1~5的乘法口诀
+数与代数,表内乘法,乘法口诀,乘加乘减混合计算,无,6~9的乘法口诀
+数与代数,表内除法,除法的初步认识,平均分的意义(等分除),意义,乘法的意义(相同加数连加的简便运算)
+数与代数,表内除法,除法的初步认识,平均分的意义(包含除),意义,平均分的意义(等分除)
+数与代数,表内除法,除法的初步认识,除法算式的各部分名称,认识,平均分的意义(等分除)
+数与代数,表内除法,用乘法口诀求商,用1~6的乘法口诀求商,无,1~5的乘法口诀
+数与代数,表内除法,用乘法口诀求商,用7~9的乘法口诀求商,无,6~9的乘法口诀
+数与代数,整数四则混合运算(初步),同级运算,只含加减法的混合运算,无,100以内的加减混合计算
+数与代数,整数四则混合运算(初步),同级运算,只含乘除法的混合运算,无,用7~9的乘法口诀求商
+数与代数,整数四则混合运算(初步),两级运算,含乘法和加减法的混合运算,无,只含加减法的混合运算
+数与代数,整数四则混合运算(初步),两级运算,含除法和加减法的混合运算,无,只含乘除法的混合运算
+数与代数,整数四则混合运算(初步),带括号的运算,含小括号的混合运算,无,含乘法和加减法的混合运算
+数与代数,有余数的除法,有余数除法的意义,余数的产生与意义,有余数|意义,用7~9的乘法口诀求商
+数与代数,有余数的除法,有余数除法的意义,余数与除数的关系,有余数,余数的产生与意义
+数与代数,有余数的除法,有余数除法的计算,有余数除法的竖式计算,有余数|无余数,余数与除数的关系
+数与代数,整数认识(万以内),千以内数的认识,千以内数的组成与读写,组成|读写|中间有0的读写,100以内数的组成
+数与代数,整数认识(万以内),万以内数的认识,万以内数的组成与读写,组成|读写|中间有0的读写|末尾有0的读写,千以内数的组成与读写
+数与代数,整数认识(万以内),万以内数的比大小,万以内数的比大小,比大小,万以内数的组成与读写
+数与代数,整数认识(万以内),近似数,万以内数的近似数,近似数,万以内数的比大小
+数与代数,整数认识(万以内),整百整千数加减法,整百整千数加减法(不进退位),不进位|不退位,千以内数的组成与读写
+数与代数,整数认识(万以内),整百整千数加减法,整百整千数加减法(进退位),进位|退位,整百整千数加减法(不进退位)
+图形与几何,常见的量(长度),长度单位的认识,厘米的认识,认识,
+图形与几何,常见的量(长度),长度单位的认识,米的认识,认识,厘米的认识
+图形与几何,常见的量(长度),长度单位的换算,米与厘米的进率(1米=100厘米),单名数之间的单位换算,米的认识
+图形与几何,常见的量(长度),线段的认识,线段的直观特征,认识,厘米的认识
+图形与几何,平面图形的认识(角),角的初步认识,角的直观特征与各部分名称,认识,
+图形与几何,平面图形的认识(角),角的分类(初步),直角的认识与判断,认识,角的直观特征与各部分名称
+图形与几何,平面图形的认识(角),角的分类(初步),锐角的认识与判断,认识,直角的认识与判断
+图形与几何,平面图形的认识(角),角的分类(初步),钝角的认识与判断,认识,直角的认识与判断
+图形与几何,常见的量(质量),质量单位的认识,克的认识,认识,
+图形与几何,常见的量(质量),质量单位的认识,千克的认识,认识,克的认识
+图形与几何,常见的量(质量),质量单位的换算,千克与克的进率(1千克=1000克),单名数之间的单位换算,千克的认识
+图形与几何,图形的运动(初步),轴对称图形,轴对称图形的直观特征,认识,
+图形与几何,图形的运动(初步),平移,平移的直观特征,认识,
+图形与几何,图形的运动(初步),旋转,旋转的直观特征,认识,
+图形与几何,常见的量(时间),时间单位的认识,秒的认识,认识,
+图形与几何,常见的量(时间),时间单位的换算,时与分的进率(1时=60分),单名数之间的单位换算,秒的认识
+图形与几何,常见的量(时间),时间单位的换算,分与秒的进率(1分=60秒),单名数之间的单位换算,秒的认识
+图形与几何,常见的量(时间),时间的计算,计算经过的时间,无,分与秒的进率(1分=60秒)
+图形与几何,观察物体,观察物体(初步),辨认从不同位置观察简单物体的形状,三视图,
+图形与几何,观察物体,观察物体(组合),辨认从不同方向观察组合几何体的形状,三视图,辨认从不同位置观察简单物体的形状
+统计与概率,统计初步,分类与整理,按不同标准分类,无,
+统计与概率,统计初步,复式统计表,复式统计表的结构与读取,无,按不同标准分类
+综合与实践,数学广角,集合(容斥原理),集合的初步认识(韦恩图),无,按不同标准分类
+数与代数,整数加减法(万以内),两位数加减法(口算),两位数加两位数(口算),不进位|进位,两位数加两位数(进位)
+数与代数,整数加减法(万以内),两位数加减法(口算),两位数减两位数(口算),不退位|退位,两位数减两位数(退位)
+数与代数,整数加减法(万以内),三位数加法(笔算),三位数加三位数(不进位),不进位,两位数加两位数(不进位)
+数与代数,整数加减法(万以内),三位数加法(笔算),三位数加三位数(一次进位),不连续进位|个位进位|十位进位,三位数加三位数(不进位)
+数与代数,整数加减法(万以内),三位数加法(笔算),三位数加三位数(连续进位),连续进位,三位数加三位数(一次进位)
+数与代数,整数加减法(万以内),三位数加法(笔算),三位数加法(和超过1000),连续进位,三位数加三位数(连续进位)
+数与代数,整数加减法(万以内),三位数减法(笔算),三位数减三位数(不退位),不退位,两位数减两位数(不退位)
+数与代数,整数加减法(万以内),三位数减法(笔算),三位数减三位数(一次退位),不连续退位|个位退位|十位退位,三位数减三位数(不退位)
+数与代数,整数加减法(万以内),三位数减法(笔算),三位数减三位数(连续退位),连续退位,三位数减三位数(一次退位)
+数与代数,整数加减法(万以内),三位数减法(笔算),被减数中间有0的退位减法,中间有0|连续退位,三位数减三位数(连续退位)
+数与代数,整数加减法(万以内),三位数减法(笔算),被减数末尾有0的退位减法,末尾有0|退位,三位数减三位数(一次退位)
+数与代数,整数加减法(万以内),加减法估算,加减法估算(求近似值),近似数,万以内数的近似数
+数与代数,整数加减法(万以内),加减法应用模型(万以内),和差问题,无,比多比少问题(求大数)
+数与代数,倍的认识,倍的意义,倍的直观概念,意义,平均分的意义(包含除)
+数与代数,倍的认识,求一个数是另一个数的几倍,求倍数关系(包含除模型),无,倍的直观概念
+数与代数,倍的认识,求一个数的几倍是多少,求总数关系(乘法模型),无,倍的直观概念
+数与代数,整数乘法(多位数乘一位数),口算乘法,整十整百数乘一位数,末尾有0,6~9的乘法口诀
+数与代数,整数乘法(多位数乘一位数),笔算乘法,多位数乘一位数(不进位),不进位,整十整百数乘一位数
+数与代数,整数乘法(多位数乘一位数),笔算乘法,多位数乘一位数(一次进位),不连续进位,多位数乘一位数(不进位)
+数与代数,整数乘法(多位数乘一位数),笔算乘法,多位数乘一位数(连续进位),连续进位,多位数乘一位数(一次进位)
+数与代数,整数乘法(多位数乘一位数),笔算乘法,因数中间有0的乘法,中间有0,多位数乘一位数(连续进位)
+数与代数,整数乘法(多位数乘一位数),笔算乘法,因数末尾有0的乘法,末尾有0,多位数乘一位数(连续进位)
+数与代数,整数除法(除数是一位数),口算除法,整十整百数除以一位数,无,用7~9的乘法口诀求商
+数与代数,整数除法(除数是一位数),笔算除法,两位数除以一位数(首位能整除),首位能除尽,整十整百数除以一位数
+数与代数,整数除法(除数是一位数),笔算除法,两位数除以一位数(首位不能整除),首位不够除,两位数除以一位数(首位能整除)
+数与代数,整数除法(除数是一位数),笔算除法,三位数除以一位数(首位够除),首位能除尽|商是三位数,两位数除以一位数(首位不能整除)
+数与代数,整数除法(除数是一位数),笔算除法,三位数除以一位数(首位不够除),首位不够除|商是两位数,三位数除以一位数(首位够除)
+数与代数,整数除法(除数是一位数),笔算除法,商中间有0的除法,商中间有0,三位数除以一位数(首位不够除)
+数与代数,整数除法(除数是一位数),笔算除法,商末尾有0的除法,商末尾有0,商中间有0的除法
+数与代数,整数除法(除数是一位数),乘除法的验算,乘除法的验算(用逆运算验证),无,三位数除以一位数(首位不够除)
+数与代数,整数乘法(多位数乘一位数),乘除法应用模型(初步),归一问题(先求单一量),无,求倍数关系(包含除模型)
+数与代数,整数乘法(多位数乘一位数),乘除法应用模型(初步),归总问题(先求总量),无,归一问题(先求单一量)
+综合与实践,数学广角,植树问题,植树问题(间隔模型),无,有余数除法的竖式计算
+综合与实践,数学广角,还原问题,还原问题(逆推法),无,含小括号的混合运算
+图形与几何,常见的量(长度与质量进阶),长度单位的认识,毫米的认识,认识,厘米的认识
+图形与几何,常见的量(长度与质量进阶),长度单位的认识,分米的认识,认识,毫米的认识
+图形与几何,常见的量(长度与质量进阶),长度单位的认识,千米的认识,认识,米的认识
+图形与几何,常见的量(长度与质量进阶),长度单位的换算,毫米与厘米的进率(1厘米=10毫米),单名数之间的单位换算,毫米的认识
+图形与几何,常见的量(长度与质量进阶),长度单位的换算,分米与米的进率(1米=10分米),单名数之间的单位换算,分米的认识
+图形与几何,常见的量(长度与质量进阶),长度单位的换算,千米与米的进率(1千米=1000米),单名数之间的单位换算,千米的认识
+图形与几何,常见的量(长度与质量进阶),质量单位的认识,吨的认识,认识,千克的认识
+图形与几何,常见的量(长度与质量进阶),质量单位的换算,吨与千克的进率(1吨=1000千克),单名数之间的单位换算,吨的认识
+图形与几何,平面图形的认识与测量(周长),四边形的认识,四边形的直观特征,认识,
+图形与几何,平面图形的认识与测量(周长),长方形与正方形的特征,长方形的边角特征,认识,四边形的直观特征
+图形与几何,平面图形的认识与测量(周长),长方形与正方形的特征,正方形的边角特征,认识,长方形的边角特征
+图形与几何,平面图形的认识与测量(周长),周长的意义,周长的概念,意义,四边形的直观特征
+图形与几何,平面图形的认识与测量(周长),周长的计算,长方形周长的算理(对边相等),意义,长方形的边角特征
+图形与几何,平面图形的认识与测量(周长),周长的计算,长方形周长的计算,无,长方形周长的算理(对边相等)
+图形与几何,平面图形的认识与测量(周长),周长的计算,正方形周长的计算,无,正方形的边角特征
+数与代数,整数乘法(两位数乘两位数),口算乘法,整十数乘整十数,末尾有0,整十整百数乘一位数
+数与代数,整数乘法(两位数乘两位数),笔算乘法,两位数乘两位数(不进位),不进位,整十数乘整十数
+数与代数,整数乘法(两位数乘两位数),笔算乘法,两位数乘两位数(进位),不连续进位|连续进位,两位数乘两位数(不进位)
+图形与几何,平面图形的认识与测量(面积),面积的意义,面积的概念,意义,周长的概念
+图形与几何,平面图形的认识与测量(面积),面积单位,平方厘米/平方分米/平方米的认识,认识,面积的概念
+图形与几何,平面图形的认识与测量(面积),面积的计算,长方形面积的算理(行列模型),意义,面积的概念|多位数乘一位数(连续进位)
+图形与几何,平面图形的认识与测量(面积),面积的计算,长方形面积的计算,无,长方形面积的算理(行列模型)
+图形与几何,平面图形的认识与测量(面积),面积的计算,正方形面积的计算,无,长方形面积的计算
+图形与几何,平面图形的认识与测量(面积),面积单位的换算,相邻面积单位间的进率(100),单名数之间的单位换算,平方厘米/平方分米/平方米的认识
+图形与几何,平面图形的认识与测量(面积),面积单位的换算,公顷的认识与换算,认识|单名数之间的单位换算,相邻面积单位间的进率(100)
+图形与几何,平面图形的认识与测量(面积),面积单位的换算,平方千米的认识与换算,认识|单名数之间的单位换算,公顷的认识与换算
+图形与几何,常见的量(时间进阶),年月日的认识,大月与小月的特征,认识,
+图形与几何,常见的量(时间进阶),年月日的认识,平年与闰年的特征,认识,大月与小月的特征
+图形与几何,常见的量(时间进阶),计时法,24时计时法与普通计时法的转换,互化,
+图形与几何,图形与位置,方向的认识,东南西北的认识,认识,
+图形与几何,图形与位置,方向的认识,东北/东南/西北/西南的认识,认识,东南西北的认识
+数与代数,分数的初步认识,分数的意义(初步),几分之一的认识,意义,
+数与代数,分数的初步认识,分数的意义(初步),几分之几的认识,意义,几分之一的认识
+数与代数,分数的初步认识,分数比大小(初步),同分母分数比大小,比大小,几分之几的认识
+数与代数,分数的初步认识,分数比大小(初步),同分子分数比大小,比大小,同分母分数比大小
+数与代数,分数的初步认识,分数的简单计算,同分母分数加减法(分母小于10),不约分,几分之几的认识
+数与代数,分数的初步认识,分数的简单计算,1减去几分之几,无,同分母分数加减法(分母小于10)
+数与代数,小数的初步认识,小数的意义(初步),一位小数的意义,意义,几分之一的认识|11~20的组成
+数与代数,小数的初步认识,小数的读写(初步),一位小数的读写,读写,一位小数的意义
+数与代数,小数的初步认识,小数比大小(初步),一位小数的比大小,比大小,一位小数的读写
+数与代数,小数的初步认识,小数的简单计算,一位小数的加减法(不进退位),不进位|不退位,一位小数的比大小
+数与代数,小数的初步认识,小数的简单计算,一位小数的加减法(进退位),进位|退位,一位小数的加减法(不进退位)
+数与代数,整数认识(大数),亿以内数的认识,亿以内数的计数单位与数位顺序,组成,万以内数的组成与读写
+数与代数,整数认识(大数),亿以内数的认识,十进制计数法,意义,亿以内数的计数单位与数位顺序
+数与代数,整数认识(大数),亿以内数的读写,亿以内数的读法,读写|中间有0的读写|末尾有0的读写|中间和末尾都有0的读写,亿以内数的计数单位与数位顺序
+数与代数,整数认识(大数),亿以内数的读写,亿以内数的写法,读写|中间有0的读写|末尾有0的读写|中间和末尾都有0的读写,亿以内数的读法
+数与代数,整数认识(大数),大数的改写与近似数,整万数的改写,改写,亿以内数的读写
+数与代数,整数认识(大数),大数的改写与近似数,非整万数求近似数,近似数,整万数的改写
+数与代数,整数认识(大数),亿以上数的认识,亿以上数的读写,读写|中间有0的读写|末尾有0的读写|中间和末尾都有0的读写,亿以内数的读写
+数与代数,整数认识(大数),大数的改写与近似数,整亿数的改写,改写,亿以上数的读写
+数与代数,整数认识(大数),大数的改写与近似数,非整亿数求近似数,近似数,整亿数的改写
+综合与实践,数学广角,鸡兔同笼,鸡兔同笼问题(假设法),无,含小括号的混合运算
+数与代数,整数乘法(多位数),三位数乘两位数,三位数乘两位数(一般情况),连续进位,两位数乘两位数(进位)
+数与代数,整数乘法(多位数),三位数乘两位数,因数中间有0的乘法,中间有0,因数中间有0的乘法
+数与代数,整数乘法(多位数),三位数乘两位数,因数末尾有0的乘法,末尾有0,因数末尾有0的乘法
+数与代数,整数乘法(多位数),积的变化规律,积的变化规律(单因数变化),无,三位数乘两位数(一般情况)
+数与代数,整数乘法(多位数),积的变化规律,积的变化规律(双因数变化),无,积的变化规律(单因数变化)
+数与代数,整数乘法(多位数),乘除法估算,乘法估算,近似数,三位数乘两位数(一般情况)
+数与代数,整数除法(多位数),除数是整十数的除法,除数是整十数的口算除法,无,整十整百数除以一位数
+数与代数,整数除法(多位数),除数是两位数的除法,试商方法(四舍五入法),无,除数是整十数的口算除法|有余数除法的竖式计算
+数与代数,整数除法(多位数),除数是两位数的除法,除数是两位数(商是一位数),商是一位数|调商,试商方法(四舍五入法)
+数与代数,整数除法(多位数),除数是两位数的除法,除数是两位数(商是两位数),商是两位数|连续调商,除数是两位数(商是一位数)
+数与代数,整数除法(多位数),商的变化规律,商不变的规律,无,积的变化规律(单因数变化)
+数与代数,整数除法(多位数),乘除法估算,除法估算,近似数,除数是两位数(商是两位数)
+数与代数,运算定律与简便计算,加法运算定律,加法交换律,无,
+数与代数,运算定律与简便计算,加法运算定律,加法结合律,无,加法交换律
+数与代数,运算定律与简便计算,减法的性质,减法的性质(连减变减和),无,加法结合律
+数与代数,运算定律与简便计算,乘法运算定律,乘法交换律,无,
+数与代数,运算定律与简便计算,乘法运算定律,乘法结合律,无,乘法交换律
+数与代数,运算定律与简便计算,乘法运算定律,乘法分配律,无,乘法结合律
+数与代数,运算定律与简便计算,除法的性质,除法的性质(连除变除积),无,乘法分配律
+数与代数,小数的认识,小数的意义,小数的意义(十进分数),意义,一位小数的意义
+数与代数,小数的认识,小数的读写,小数的读法,读写,小数的意义(十进分数)
+数与代数,小数的认识,小数的读写,小数的写法,读写|中间有0的读写|末尾有0的读写,小数的读法
+数与代数,小数的认识,小数的性质,小数的性质(末尾添0去0),末尾有0,小数的写法
+数与代数,小数的认识,小数的比大小,多位小数的比大小,比大小,小数的性质(末尾添0去0)
+数与代数,小数的认识,小数点位置移动,小数点向右移动引起大小变化,无,小数的性质(末尾添0去0)
+数与代数,小数的认识,小数点位置移动,小数点向左移动引起大小变化,无,小数点向右移动引起大小变化
+数与代数,小数的认识,名数互化,单名数与复名数互化,单名数之间的单位换算|单复名数之间的单位换算,小数点位置移动
+数与代数,小数的认识,小数的近似数,求小数的近似数,近似数,小数的性质(末尾添0去0)
+数与代数,小数加减法,小数加减法的对齐规则,小数加减法对齐规则(小数点对齐),无,小数的意义(十进分数)|被减数中间有0的退位减法
+数与代数,小数加减法,小数加法,小数加法(位数相同不进位),不进位,小数加减法对齐规则(小数点对齐)
+数与代数,小数加减法,小数加法,小数加法(位数相同进位),进位,小数加法(位数相同不进位)
+数与代数,小数加减法,小数加法,小数加法(位数不同),位数不同|末尾补0|进位|退位,小数加法(位数相同进位)
+数与代数,小数加减法,小数减法,小数减法(位数相同不退位),不退位,小数加减法对齐规则(小数点对齐)
+数与代数,小数加减法,小数减法,小数减法(位数相同退位),退位,小数减法(位数相同不退位)
+数与代数,小数加减法,小数减法,小数减法(位数不同),位数不同|末尾补0|进位|退位,小数减法(位数相同退位)
+图形与几何,线与角,线段/直线/射线,线段/直线/射线的特征,认识,
+图形与几何,线与角,角的度量,角的度量方法(量角器),度量,角的直观特征与各部分名称
+图形与几何,线与角,角的分类,锐角/直角/钝角/平角/周角的特征,认识,角的度量方法(量角器)
+图形与几何,平行与垂直,平行与垂直的认识,同一平面内两条直线的位置关系,认识,线段/直线/射线的特征
+图形与几何,平行与垂直,垂线的画法与性质,画垂线的方法,画图形,同一平面内两条直线的位置关系
+图形与几何,平行与垂直,垂线的画法与性质,点到直线的距离(垂线段最短),无,画垂线的方法
+图形与几何,平行与垂直,平行线的画法,画平行线的方法,画图形,同一平面内两条直线的位置关系
+图形与几何,平面图形的认识(多边形),平行四边形,平行四边形的特征,认识,同一平面内两条直线的位置关系
+图形与几何,平面图形的认识(多边形),梯形,梯形的特征,认识,平行四边形的特征
+图形与几何,平面图形的认识(多边形),三角形的特性,三角形的稳定性,无,
+图形与几何,平面图形的认识(多边形),三角形的三边关系,三角形任意两边之和大于第三边,无,三角形的稳定性
+图形与几何,平面图形的认识(多边形),三角形的高,三角形的高(作高方法),画图形,三角形任意两边之和大于第三边
+图形与几何,平面图形的认识(多边形),三角形的内角和,三角形内角和是180度,无,三角形的高(作高方法)
+图形与几何,平面图形的认识(多边形),三角形的分类,按角分类(锐角/直角/钝角三角形),无,三角形内角和是180度
+图形与几何,平面图形的认识(多边形),三角形的分类,按边分类(等腰/等边三角形),无,按角分类(锐角/直角/钝角三角形)
+图形与几何,图形的运动,平移,在方格纸上平移图形,构图,平移的直观特征
+图形与几何,图形的运动,轴对称,补全轴对称图形,构图,轴对称图形的直观特征
+统计与概率,数据统计与分析,条形统计图,1格代表多个单位的条形统计图,1格表示5个及多个单位,复式统计表的结构与读取
+统计与概率,数据统计与分析,条形统计图,复式条形统计图,无,1格代表多个单位的条形统计图
+统计与概率,数据统计与分析,平均数,平均数的意义(移多补少原理),意义,条形统计图
+统计与概率,数据统计与分析,平均数,平均数的计算(总数÷份数),无,平均数的意义(移多补少原理)
+数与代数,小数乘除法,小数乘法的对齐规则,小数乘法对齐规则(末位对齐),无,三位数乘两位数(一般情况)|小数点向右移动引起大小变化
+数与代数,小数乘除法,小数乘法,小数乘整数的算理(转化思想),意义,小数乘法对齐规则(末位对齐)
+数与代数,小数乘除法,小数乘法,小数乘整数的计算,积的小数位数不变,小数乘整数的算理(转化思想)
+数与代数,小数乘除法,小数乘法,小数乘小数的计算,积的小数位数叠加,小数乘整数的计算
+数与代数,小数乘除法,小数乘法,积的末尾去0,末尾有0,小数乘小数的计算
+数与代数,小数乘除法,小数乘法,积的近似数,近似数,积的末尾去0
+数与代数,小数乘除法,小数乘法,小数乘法中积与因数的大小关系,无,小数乘小数的计算
+数与代数,小数乘除法,小数除法,除数是整数的小数除法,商的小数点对齐,除数是两位数(商是两位数)|小数点向右移动引起大小变化
+数与代数,小数乘除法,小数除法,除数是小数的小数除法的算理(商不变规律),意义,商不变的规律
+数与代数,小数乘除法,小数除法,除数是小数的小数除法的计算,移动小数点,除数是小数的小数除法的算理(商不变规律)
+数与代数,小数乘除法,小数除法,被除数末尾补0继续除,末尾补0,除数是整数的小数除法
+数与代数,小数乘除法,小数除法,商不够1补0,首位不够除,除数是整数的小数除法
+数与代数,小数乘除法,小数除法,商的近似数,近似数,被除数末尾补0继续除
+数与代数,小数乘除法,循环小数,循环小数的认识与读写,认识,商的近似数
+数与代数,代数初步(方程),用字母表示数,用字母表示数量关系,无,
+数与代数,代数初步(方程),等式的性质,等式的性质1(加减),无,用字母表示数量关系
+数与代数,代数初步(方程),等式的性质,等式的性质2(乘除),无,等式的性质1(加减)
+数与代数,代数初步(方程),解方程,解形如x±a=b的方程,无,等式的性质1(加减)
+数与代数,代数初步(方程),解方程,解形如ax=b的方程,无,等式的性质2(乘除)
+数与代数,代数初步(方程),解方程,解形如a-x=b的方程,无,解形如x±a=b的方程
+数与代数,代数初步(方程),解方程,解形如a÷x=b的方程,无,解形如ax=b的方程
+数与代数,代数初步(方程),解方程,解形如ax±b=c的方程,无,解形如x±a=b的方程
+数与代数,代数初步(方程),解方程,解形如ax±bx=c的方程,无,解形如ax±b=c的方程
+数与代数,整数四则混合运算(进阶),含中括号的运算,含中括号的三步混合运算,无,含小括号的混合运算
+数与代数,数论初步,因数与倍数,因数与倍数的概念,意义,用7~9的乘法口诀求商
+数与代数,数论初步,因数与倍数,求一个数的因数的方法,无,因数与倍数的概念
+数与代数,数论初步,因数与倍数,求一个数的倍数的方法,无,因数与倍数的概念
+数与代数,数论初步,倍数特征,2的倍数特征(偶数),无,因数与倍数的概念
+数与代数,数论初步,倍数特征,5的倍数特征,无,因数与倍数的概念
+数与代数,数论初步,倍数特征,3的倍数特征,无,因数与倍数的概念
+数与代数,数论初步,质数与合数,质数与合数的概念,认识,因数与倍数的概念
+数与代数,数论初步,质数与合数,分解质因数,无,质数与合数的概念
+数与代数,数论初步,奇数与偶数,奇数与偶数的概念,认识,2的倍数特征(偶数)
+数与代数,数论初步,公因数与公倍数,求最大公因数,无,分解质因数
+数与代数,数论初步,公因数与公倍数,求最小公倍数,无,求最大公因数
+数与代数,分数的认识,分数的意义,分数的意义——作为具体的量(带单位),意义,几分之几的认识
+数与代数,分数的认识,分数的意义,分数的意义——作为倍数关系(不带单位),意义,分数的意义——作为具体的量(带单位)
+数与代数,分数的认识,分数的意义,寻找单位"1"的方法,无,分数的意义——作为倍数关系(不带单位)
+数与代数,分数的认识,分数与除法,分数与除法的关系,互化,分数的意义——作为具体的量(带单位)
+数与代数,分数的认识,真假分数,真分数与假分数的概念,认识,分数与除法的关系
+数与代数,分数的认识,真假分数,假分数化带分数或整数,互化,真分数与假分数的概念
+数与代数,分数的认识,分数的基本性质,分数的基本性质,无,假分数化带分数或整数
+数与代数,分数的认识,约分,约分的方法,约分,求最大公因数
+数与代数,分数的认识,通分,通分的方法,通分,求最小公倍数
+数与代数,分数的认识,分数的比大小,分数的大小比较(通分法/化小数法),比大小|通分|互化,通分的方法
+数与代数,分数的认识,分数与小数互化,分数化小数,互化,分数与除法的关系
+数与代数,分数的认识,分数与小数互化,小数化分数,互化|约分,分数的基本性质
+数与代数,分数加减法,同分母分数加减法,同分母分数加减法,不约分|约分|结果是假分数,通分的方法
+数与代数,分数加减法,异分母分数加减法,异分母分数加减法,通分,同分母分数加减法|小数加减法对齐规则(小数点对齐)
+数与代数,分数加减法,分数加减法的特殊情况,整数减真分数(如1-1/3),互化,异分母分数加减法
+数与代数,分数加减法,分数加减法的特殊情况,带分数退位减法,退位,整数减真分数(如1-1/3)
+数与代数,分数加减法,分数加减混合运算,分数加减混合运算,通分|约分,异分母分数加减法
+图形与几何,平面图形的测量(面积),平行四边形的面积,平行四边形面积的推导(割补法),意义,长方形面积的计算
+图形与几何,平面图形的测量(面积),平行四边形的面积,平行四边形面积的计算,无,平行四边形面积的推导(割补法)
+图形与几何,平面图形的测量(面积),三角形的面积,三角形面积的推导(拼凑法),意义,平行四边形面积的计算
+图形与几何,平面图形的测量(面积),三角形的面积,三角形面积的计算,无,三角形面积的推导(拼凑法)
+图形与几何,平面图形的测量(面积),梯形的面积,梯形面积的推导(拼凑法),意义,平行四边形面积的计算
+图形与几何,平面图形的测量(面积),梯形的面积,梯形面积的计算,无,梯形面积的推导(拼凑法)
+图形与几何,平面图形的测量(面积),组合图形的面积,组合图形面积(加法思路),无,三角形面积的计算
+图形与几何,平面图形的测量(面积),组合图形的面积,组合图形面积(减法思路),无,组合图形面积(加法思路)
+图形与几何,立体图形的认识与测量,长方体和正方体的认识,长方体的特征,认识,长方形的边角特征
+图形与几何,立体图形的认识与测量,长方体和正方体的认识,正方体的特征,认识,长方体的特征
+图形与几何,立体图形的认识与测量,长方体和正方体的认识,长方体/正方体的展开图,展开图,正方体的特征
+图形与几何,立体图形的认识与测量,棱长和,长方体的棱长和,无,长方体的特征
+图形与几何,立体图形的认识与测量,棱长和,正方体的棱长和,无,正方体的特征
+图形与几何,立体图形的认识与测量,表面积,长方体的表面积计算,无,长方体的特征
+图形与几何,立体图形的认识与测量,表面积,正方体的表面积计算,无,正方体的特征
+图形与几何,立体图形的认识与测量,表面积,表面积的实际应用(缺面问题),缺面,长方体的表面积计算
+图形与几何,立体图形的认识与测量,体积与容积,体积与容积的概念,意义,长方体的特征
+图形与几何,立体图形的认识与测量,体积计算,长方体的体积计算,无,体积与容积的概念|三位数乘两位数(一般情况)
+图形与几何,立体图形的认识与测量,体积计算,正方体的体积计算,无,长方体的体积计算
+图形与几何,立体图形的认识与测量,体积单位,体积单位的换算(立方分米=升),单名数之间的单位换算,体积与容积的概念
+图形与几何,图形的位置与运动,位置,用数对确定位置,无,
+图形与几何,图形的位置与运动,旋转,在方格纸上画旋转图形,构图|度量,旋转的直观特征
+统计与概率,数据统计与分析,折线统计图,单式折线统计图,无,条形统计图
+统计与概率,数据统计与分析,折线统计图,复式折线统计图,无,单式折线统计图
+统计与概率,可能性,可能性的大小,判断可能性的大小,可能性的大小,
+统计与概率,可能性,可能性的大小,用分数表示可能性的大小,可能性的大小,判断可能性的大小|分数与除法的关系
+综合与实践,数学广角,找规律,找规律(数列规律),无,100以内的加减混合计算
+综合与实践,数学广角,周期问题,周期问题(余数的应用),无,有余数除法的竖式计算
+综合与实践,数学广角,等差数列,等差数列求和,无,找规律(数列规律)
+数与代数,分数乘除法,分数乘法,分数乘整数的意义(相同分数连加),意义,乘法的意义(相同加数连加的简便运算)|分数的基本性质
+数与代数,分数乘除法,分数乘法,分数乘整数的计算,约分|不约分,分数乘整数的意义(相同分数连加)
+数与代数,分数乘除法,分数乘法,分数乘分数的意义(求一个数的几分之几),意义,分数乘整数的意义(相同分数连加)
+数与代数,分数乘除法,分数乘法,分数乘分数的计算,约分|不约分,分数乘分数的意义(求一个数的几分之几)
+数与代数,分数乘除法,分数乘法,分数乘法中积与因数的大小关系,无,分数乘分数的计算
+数与代数,分数乘除法,倒数,倒数的概念,意义,分数乘分数的计算
+数与代数,分数乘除法,倒数,倒数的求法,互化,倒数的概念
+数与代数,分数乘除法,分数除法,分数除以整数的计算,约分|不约分,倒数的求法
+数与代数,分数乘除法,分数除法,一个数除以分数的计算,约分|不约分,分数除以整数的计算
+数与代数,分数乘除法,分数混合运算,分数四则混合运算,无,一个数除以分数的计算
+数与代数,分数乘除法,分数应用模型,求一个数的几分之几是多少,无,寻找单位"1"的方法
+数与代数,分数乘除法,分数应用模型,已知几分之几求单位1,无,求一个数的几分之几是多少
+数与代数,分数乘除法,分数应用模型,分数中的量与率辨析,无,分数的意义——作为倍数关系(不带单位)
+数与代数,比和比例,比的认识,比的意义与读写,认识,一个数除以分数的计算
+数与代数,比和比例,比的认识,比的基本性质,无,分数的基本性质
+数与代数,比和比例,比的认识,化简比与求比值,无,比的基本性质
+数与代数,比和比例,比例的认识,比例的意义与基本性质,意义,化简比与求比值
+数与代数,比和比例,比例的认识,解比例,无,比例的意义与基本性质
+数与代数,比和比例,正反比例,正比例的意义,意义,解比例
+数与代数,比和比例,正反比例,反比例的意义,意义,正比例的意义
+数与代数,比和比例,比例尺,比例尺的意义与分类,认识|应用,解比例
+数与代数,比和比例,比例应用模型,按比分配问题,无,化简比与求比值
+数与代数,比和比例,比例应用模型,正比例解题,无,正比例的意义
+数与代数,比和比例,比例应用模型,反比例解题,无,反比例的意义
+图形与几何,图形的运动(进阶),图形的放大与缩小,图形的放大与缩小,构图,比例尺的意义与分类
+数与代数,百分数,百分数的认识,百分数的意义与读写,意义|读写,分数的意义——作为倍数关系(不带单位)|小数的意义(十进分数)
+数与代数,百分数,百分数与分数小数的互化,百分数与小数的互化,互化,小数点位置移动
+数与代数,百分数,百分数与分数小数的互化,百分数与分数的互化,互化|约分,分数化小数
+数与代数,百分数,百分数应用模型,折扣与成数问题,应用,百分数的意义与读写
+数与代数,百分数,百分数应用模型,税率问题,应用,百分数的意义与读写
+数与代数,百分数,百分数应用模型,利率问题,应用,税率问题
+数与代数,百分数,百分数应用模型,利润率问题,应用,利率问题
+数与代数,百分数,百分数应用模型,浓度问题,应用,利润率问题
+数与代数,负数的初步认识,负数的认识,正负数的意义与读写,认识|读写,
+数与代数,负数的初步认识,负数在数轴上的表示,数轴上的正负数,比大小,正负数的意义与读写
+图形与几何,平面图形的认识与测量(曲线),圆的认识,圆的特征与各部分名称,认识,
+图形与几何,平面图形的认识与测量(曲线),圆的周长,圆周率的意义,意义,圆的特征与各部分名称
+图形与几何,平面图形的认识与测量(曲线),圆的周长,圆的周长计算,已知半径|已知直径,圆周率的意义
+图形与几何,平面图形的认识与测量(曲线),圆的面积,圆面积的推导(转化为长方形),意义,长方形面积的计算
+图形与几何,平面图形的认识与测量(曲线),圆的面积,圆面积的计算,已知半径|已知直径,圆面积的推导(转化为长方形)
+图形与几何,平面图形的认识与测量(曲线),扇形的认识,扇形的特征,认识,圆面积的计算
+图形与几何,立体图形的认识与测量(曲面),圆柱的认识,圆柱的特征与展开图,认识|展开图,圆的周长计算
+图形与几何,立体图形的认识与测量(曲面),圆柱的表面积,圆柱的侧面积计算,无,圆柱的特征与展开图
+图形与几何,立体图形的认识与测量(曲面),圆柱的表面积,圆柱的表面积计算,缺面,圆柱的侧面积计算
+图形与几何,立体图形的认识与测量(曲面),圆柱的体积,圆柱体积的推导(转化为长方体),意义,圆面积的推导(转化为长方形)
+图形与几何,立体图形的认识与测量(曲面),圆柱的体积,圆柱体积的计算,已知半径|已知直径,圆柱体积的推导(转化为长方体)
+图形与几何,立体图形的认识与测量(曲面),圆锥的认识,圆锥的特征,认识,圆柱的特征与展开图
+图形与几何,立体图形的认识与测量(曲面),圆锥的体积,圆锥体积的推导(实验法),意义,圆柱体积的计算
+图形与几何,立体图形的认识与测量(曲面),圆锥的体积,圆锥体积的计算,已知半径|已知直径,圆锥体积的推导(实验法)
+图形与几何,图形与位置,位置与方向(极坐标),用方向和距离确定位置,无,东南西北的认识
+统计与概率,统计图表,扇形统计图,扇形统计图的特征与意义,认识,百分数的意义与读写
+统计与概率,数据统计与分析,中位数与众数,中位数的概念与求法,无,平均数的计算(总数÷份数)
+统计与概率,数据统计与分析,中位数与众数,众数的概念与求法,无,平均数的计算(总数÷份数)
+综合与实践,数学广角,数与形,数形结合规律,无,
+综合与实践,数学广角,鸽巢问题,抽屉原理的认识,无,
+综合与实践,数学广角,行程问题,行程问题基本数量关系(速度×时间=路程),意义,三位数乘两位数(一般情况)`;
+
+/* ═══════════════════════════════════════════════════════════════
+   2. 配色 & 解析
+═══════════════════════════════════════════════════════════════ */
+const L1_COLORS = {
+    '数与代数':   0x00d4ff,
+    '图形与几何': 0x34d399,
+    '统计与概率': 0xfbbf24,
+    '综合与实践': 0xc084fc
+};
+const L1_CSS = {
+    '数与代数':   '#00d4ff',
+    '图形与几何': '#34d399',
+    '统计与概率': '#fbbf24',
+    '综合与实践': '#c084fc'
+};
+const L1_ANCHORS = {
+    '数与代数':   { x:   0, y:  180, z:    0 },
+    '图形与几何': { x: 160, y:  -60, z:  100 },
+    '统计与概率': { x:-160, y:  -80, z:   80 },
+    '综合与实践': { x:  20, y:  -90, z: -180 }
+};
+
+function parseCSV(raw) {
+    const lines = raw.trim().split('\n');
+    const nodes = [];
+    const nameMap = new Map();
+    for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(',');
+        if (parts.length < 5) continue;
+        const [l1, l2, l3, l4] = parts;
+        const feat = parts[4] || '';
+        const deps = parts.slice(5).join(',').trim();
+        nodes.push({ id: i - 1, l1, l2, l3, l4, feat, depsRaw: deps });
+        nameMap.set(l4, i - 1);
+    }
+    const links = [];
+    for (const n of nodes) {
+        if (!n.depsRaw) continue;
+        for (const d of n.depsRaw.split('|')) {
+            const name = d.trim();
+            if (name && nameMap.has(name)) {
+                links.push({ source: nameMap.get(name), target: n.id });
+            }
+        }
+    }
+    return { nodes, links };
+}
+const { nodes, links } = parseCSV(CSV_RAW);
+
+/* 度数 */
+const inDeg  = new Array(nodes.length).fill(0);
+const outDeg = new Array(nodes.length).fill(0);
+links.forEach(l => { inDeg[l.target]++; outDeg[l.source]++; });
+nodes.forEach((n, i) => { n.degree = inDeg[i] + outDeg[i]; n.inDeg = inDeg[i]; n.outDeg = outDeg[i]; });
+
+/* 拓扑深度 */
+function topoDepth() {
+    const adj = new Map(), ind = new Map();
+    nodes.forEach(n => { adj.set(n.id, []); ind.set(n.id, 0); });
+    links.forEach(l => { adj.get(l.source).push(l.target); ind.set(l.target, ind.get(l.target) + 1); });
+    const depth = new Map(), q = [];
+    nodes.forEach(n => { if (ind.get(n.id) === 0) { depth.set(n.id, 0); q.push(n.id); } });
+    while (q.length) {
+        const c = q.shift();
+        for (const nx of adj.get(c)) {
+            depth.set(nx, Math.max(depth.get(nx) || 0, (depth.get(c) || 0) + 1));
+            ind.set(nx, ind.get(nx) - 1);
+            if (ind.get(nx) === 0) q.push(nx);
+        }
+    }
+    return depth;
+}
+const depthMap = topoDepth();
+const maxDepth = Math.max(...depthMap.values(), 1);
+nodes.forEach(n => n.depth = depthMap.get(n.id) || 0);
+
+/* ═══════════════════════════════════════════════════════════════
+   3. 3D 力导向布局（d3-force-3d）
+═══════════════════════════════════════════════════════════════ */
+nodes.forEach(n => {
+    const a = L1_ANCHORS[n.l1] || { x: 0, y: 0, z: 0 };
+    n.x = a.x + (Math.random() - 0.5) * 80;
+    n.y = a.y + (Math.random() - 0.5) * 80;
+    n.z = a.z + (Math.random() - 0.5) * 80;
+});
+
+const sim = d3.forceSimulation(nodes, 3)
+    .force('link',    d3.forceLink(links).id(d => d.id).distance(d => 20 + d.target.degree * 0.4).strength(0.45))
+    .force('charge',  d3.forceManyBody().strength(-55).distanceMax(260))
+    .force('collide', d3.forceCollide(d => 4 + Math.sqrt(d.degree) * 1.6))
+    .force('center',  d3.forceCenter(0, 0, 0).strength(0.02))
+    .force('cluster', function(alpha) {
+        for (const n of nodes) {
+            const a = L1_ANCHORS[n.l1];
+            if (!a) continue;
+            n.vx = (n.vx || 0) + (a.x - n.x) * 0.05 * alpha;
+            n.vy = (n.vy || 0) + (a.y - n.y) * 0.05 * alpha;
+            n.vz = (n.vz || 0) + (a.z - n.z) * 0.05 * alpha;
+        }
+    })
+    .stop();
+for (let i = 0; i < 260; i++) sim.tick();
+
+/* ═══════════════════════════════════════════════════════════════
+   4. Three.js 场景
+═══════════════════════════════════════════════════════════════ */
+const canvasRoot = document.getElementById('canvas-root');
+let W = window.innerWidth, H = window.innerHeight;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x05081a, 800, 1800);
+
+const camera = new THREE.PerspectiveCamera(55, W / H, 0.1, 5000);
+camera.position.set(0, 80, 620);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(W, H);
+renderer.setClearColor(0x000000, 0);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+canvasRoot.appendChild(renderer.domElement);
+
+/* Orbit 控制 */
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.07;
+controls.rotateSpeed = 0.7;
+controls.zoomSpeed = 0.9;
+controls.panSpeed = 0.7;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.35;
+controls.minDistance = 80;
+controls.maxDistance = 2200;
+
+/* 星系群组（用于整体轻微摇摆） */
+const universeGroup = new THREE.Group();
+scene.add(universeGroup);
+
+/* ═══════════════════════════════════════════════════════════════
+   5. 星云（纹理 Sprite）
+═══════════════════════════════════════════════════════════════ */
+function makeRadialTexture(colorStops, size = 256) {
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    colorStops.forEach(([stop, col]) => g.addColorStop(stop, col));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+    const tex = new THREE.CanvasTexture(c);
+    tex.anisotropy = 4;
+    return tex;
+}
+const glowTex = makeRadialTexture([
+    [0.00, 'rgba(255,255,255,1)'],
+    [0.18, 'rgba(255,255,255,0.9)'],
+    [0.42, 'rgba(255,255,255,0.35)'],
+    [1.00, 'rgba(255,255,255,0)']
+]);
+const nebulaTex = makeRadialTexture([
+    [0.00, 'rgba(255,255,255,0.5)'],
+    [0.30, 'rgba(255,255,255,0.22)'],
+    [0.70, 'rgba(255,255,255,0.06)'],
+    [1.00, 'rgba(255,255,255,0)']
+], 512);
+
+// 星云 sprite 移除 —— 之前的大色块会喧宾夺主
+// 改为极弱的背景辉光（几乎看不见，只在星云聚集处有一丝色温），保持深空通透感
+const nebulae = [];
+Object.entries(L1_ANCHORS).forEach(([l1, a]) => {
+    const mat = new THREE.SpriteMaterial({
+        map: nebulaTex,
+        color: L1_COLORS[l1],
+        transparent: true,
+        opacity: 0.05,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+    const sp = new THREE.Sprite(mat);
+    sp.position.set(a.x, a.y, a.z);
+    sp.scale.set(320, 320, 1);
+    sp.userData = { baseOpacity: 0.05, baseScale: 320, phase: Math.random() * Math.PI * 2 };
+    universeGroup.add(sp);
+    nebulae.push(sp);
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   6. 节点星辰
+═══════════════════════════════════════════════════════════════ */
+const nodeSprites = new Array(nodes.length);
+const nodesGroup = new THREE.Group();
+universeGroup.add(nodesGroup);
+
+nodes.forEach((n, i) => {
+    const baseSize = 5.4 + Math.sqrt(n.degree) * 2.6;
+    const mat = new THREE.SpriteMaterial({
+        map: glowTex,
+        color: L1_COLORS[n.l1],
+        transparent: true,
+        opacity: 0.95,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+    const sp = new THREE.Sprite(mat);
+    sp.position.set(n.x, n.y, n.z);
+    sp.scale.set(baseSize, baseSize, 1);
+    sp.userData = {
+        id: n.id,
+        node: n,
+        baseSize,
+        baseColor: new THREE.Color(L1_COLORS[n.l1]),
+        baseOpacity: 0.95,
+        phase: (i * 0.37) % (Math.PI * 2),
+        speed: 0.7 + Math.random() * 0.6
+    };
+    nodesGroup.add(sp);
+    nodeSprites[i] = sp;
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   7. 边（LineSegments）
+═══════════════════════════════════════════════════════════════ */
+const edgePositions = new Float32Array(links.length * 6);
+const edgeColors    = new Float32Array(links.length * 6);
+for (let i = 0; i < links.length; i++) {
+    // d3-force 运行后 link.source / link.target 已是节点对象本身
+    const lk = links[i];
+    const s = typeof lk.source === 'object' ? lk.source : nodes.find(n => n.id === lk.source);
+    const t = typeof lk.target === 'object' ? lk.target : nodes.find(n => n.id === lk.target);
+    if (!s || !t) continue;
+    edgePositions[i * 6]     = s.x; edgePositions[i * 6 + 1] = s.y; edgePositions[i * 6 + 2] = s.z;
+    edgePositions[i * 6 + 3] = t.x; edgePositions[i * 6 + 4] = t.y; edgePositions[i * 6 + 5] = t.z;
+    const cs = new THREE.Color(L1_COLORS[s.l1]);
+    const ct = new THREE.Color(L1_COLORS[t.l1]);
+    edgeColors[i * 6]     = cs.r; edgeColors[i * 6 + 1] = cs.g; edgeColors[i * 6 + 2] = cs.b;
+    edgeColors[i * 6 + 3] = ct.r; edgeColors[i * 6 + 4] = ct.g; edgeColors[i * 6 + 5] = ct.b;
+}
+const edgeGeo = new THREE.BufferGeometry();
+edgeGeo.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
+edgeGeo.setAttribute('color',    new THREE.BufferAttribute(edgeColors, 3));
+
+/* 每条边的 alpha 属性（用于高亮/变暗） */
+const edgeAlphas = new Float32Array(links.length * 2);
+for (let i = 0; i < links.length * 2; i++) edgeAlphas[i] = 1.0;
+edgeGeo.setAttribute('alpha', new THREE.BufferAttribute(edgeAlphas, 1));
+
+const edgeMat = new THREE.ShaderMaterial({
+    vertexShader: `
+        attribute float alpha;
+        varying vec3 vColor;
+        varying float vAlpha;
+        void main() {
+            vColor = color;
+            vAlpha = alpha;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        varying vec3 vColor;
+        varying float vAlpha;
+        uniform float uGlobalOpacity;
+        void main() {
+            gl_FragColor = vec4(vColor, vAlpha * uGlobalOpacity);
+        }
+    `,
+    uniforms: {
+        uGlobalOpacity: { value: 0.28 }
+    },
+    vertexColors: true,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+});
+const edgesMesh = new THREE.LineSegments(edgeGeo, edgeMat);
+universeGroup.add(edgesMesh);
+
+/* ═══════════════════════════════════════════════════════════════
+   8. 粒子流（聚焦时沿相关边流动）
+═══════════════════════════════════════════════════════════════ */
+const MAX_PARTICLES = 500;
+const particleGeo = new THREE.BufferGeometry();
+const pPositions = new Float32Array(MAX_PARTICLES * 3);
+const pColors    = new Float32Array(MAX_PARTICLES * 3);
+const pSizes     = new Float32Array(MAX_PARTICLES);
+for (let i = 0; i < MAX_PARTICLES; i++) {
+    pPositions[i*3] = pPositions[i*3+1] = pPositions[i*3+2] = 9999;
+    pSizes[i] = 0;
+}
+particleGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
+particleGeo.setAttribute('color',    new THREE.BufferAttribute(pColors, 3));
+particleGeo.setAttribute('size',     new THREE.BufferAttribute(pSizes, 1));
+
+const particleMat = new THREE.ShaderMaterial({
+    vertexShader: `
+        attribute float size;
+        varying vec3 vColor;
+        void main() {
+            vColor = color;
+            vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            gl_PointSize = size * (360.0 / -mv.z);
+            gl_Position = projectionMatrix * mv;
+        }
+    `,
+    fragmentShader: `
+        varying vec3 vColor;
+        void main() {
+            vec2 c = gl_PointCoord - 0.5;
+            float d = length(c);
+            if (d > 0.5) discard;
+            // 明亮白心 + 彩色外圈：高斯叠加
+            float core = smoothstep(0.18, 0.0, d);
+            float halo = smoothstep(0.5, 0.0, d);
+            vec3 col = mix(vColor * 1.6, vec3(1.0), core * 0.9);
+            float a = halo + core * 0.6;
+            gl_FragColor = vec4(col, clamp(a, 0.0, 1.0));
+        }
+    `,
+    vertexColors: true,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+});
+const particles = new THREE.Points(particleGeo, particleMat);
+universeGroup.add(particles);
+const particleSlots = []; // {edgeIdx, t, speed, active}
+for (let i = 0; i < MAX_PARTICLES; i++) particleSlots.push({ edgeIdx: -1, t: 0, speed: 0, active: false });
+
+/* ═══════════════════════════════════════════════════════════════
+   9. 后期：辉光
+═══════════════════════════════════════════════════════════════ */
+const composer = new EffectComposer(renderer);
+composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+composer.setSize(W, H);
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(W, H), 0.68, 0.48, 0.13);
+composer.addPass(bloomPass);
+composer.addPass(new OutputPass());
+
+/* ═══════════════════════════════════════════════════════════════
+   10. 射线交互（悬停 / 点击）
+═══════════════════════════════════════════════════════════════ */
+const raycaster = new THREE.Raycaster();
+raycaster.params.Sprite = {};
+const pointer = new THREE.Vector2();
+let hoverSprite = null;
+let downXY = null;
+
+const hoverCard = document.getElementById('hover-card');
+
+renderer.domElement.addEventListener('pointermove', ev => {
+    pointer.x = (ev.clientX / W) * 2 - 1;
+    pointer.y = -(ev.clientY / H) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObjects(nodeSprites, false);
+    if (hits.length) {
+        const sp = hits[0].object;
+        if (hoverSprite !== sp) {
+            hoverSprite = sp;
+            const n = sp.userData.node;
+            hoverCard.innerHTML = `
+                <div class="hc-title" style="--hc:${L1_CSS[n.l1]}">${n.l4}</div>
+                <div class="hc-path">${n.l1} › ${n.l2} › ${n.l3}</div>
+            `;
+            hoverCard.classList.add('show');
+            renderer.domElement.style.cursor = 'pointer';
+        }
+        const pad = 20;
+        let x = ev.clientX + pad, y = ev.clientY - 10;
+        const cw = hoverCard.offsetWidth, ch = hoverCard.offsetHeight;
+        if (x + cw > W - 10) x = ev.clientX - cw - pad;
+        if (y + ch > H - 10) y = H - ch - 10;
+        hoverCard.style.left = x + 'px';
+        hoverCard.style.top  = y + 'px';
+    } else {
+        if (hoverSprite) {
+            hoverSprite = null;
+            hoverCard.classList.remove('show');
+            renderer.domElement.style.cursor = 'grab';
+        }
+    }
+});
+renderer.domElement.addEventListener('pointerdown', ev => { downXY = [ev.clientX, ev.clientY]; });
+renderer.domElement.addEventListener('pointerup', ev => {
+    if (!downXY) return;
+    const dx = ev.clientX - downXY[0], dy = ev.clientY - downXY[1];
+    downXY = null;
+    if (Math.hypot(dx, dy) > 4) return; // 拖拽，不触发 click
+    pointer.x = (ev.clientX / W) * 2 - 1;
+    pointer.y = -(ev.clientY / H) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObjects(nodeSprites, false);
+    if (hits.length) focusOnNode(hits[0].object.userData.id);
+    else clearFocus();
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   11. 聚焦逻辑 + 相机平滑飞行
+═══════════════════════════════════════════════════════════════ */
+const rightPanel   = document.getElementById('right-panel');
+const panelPitch   = document.getElementById('panel-pitch');
+const panelFocus   = document.getElementById('panel-focus');
+const focusBody    = document.getElementById('focus-body');
+
+let currentFocus = null;
+let camAnim = null;  // {fromPos, toPos, fromTarget, toTarget, start, duration}
+const activeEdgeSet = new Set();
+
+function getChain(nodeId) {
+    // d3-force 之后 l.source/l.target 已是节点对象，这里统一用 id 比较
+    const sid = l => (typeof l.source === 'object' ? l.source.id : l.source);
+    const tid = l => (typeof l.target === 'object' ? l.target.id : l.target);
+    const nset = new Set([nodeId]);
+    const eset = new Set();
+    const ancestors = new Set(), descendants = new Set();
+    const qA = [nodeId];
+    while (qA.length) {
+        const c = qA.shift();
+        links.forEach((l, i) => {
+            const s = sid(l), t = tid(l);
+            if (t === c && !nset.has(s)) {
+                nset.add(s); ancestors.add(s); eset.add(i); qA.push(s);
+            }
+        });
+    }
+    const qD = [nodeId];
+    while (qD.length) {
+        const c = qD.shift();
+        links.forEach((l, i) => {
+            const s = sid(l), t = tid(l);
+            if (s === c && !nset.has(t)) {
+                nset.add(t); descendants.add(t); eset.add(i); qD.push(t);
+            }
+        });
+    }
+    return { nset, eset, ancestors, descendants };
+}
+
+function getParentChain(nodeId) {
+    const chain = new Set([nodeId]);
+    let current = nodeId;
+    while (nodes[current] && nodes[current].parentId !== undefined && nodes[current].parentId !== '') {
+        const pid = parseInt(nodes[current].parentId, 10);
+        if (isNaN(pid) || pid === current || pid < 0 || pid >= nodes.length) break;
+        current = pid;
+        chain.add(current);
+    }
+    return chain;
+}
+
+function focusOnNode(id) {
+    const n = nodes[id];
+    currentFocus = id;
+    const { nset, eset, ancestors, descendants } = getChain(id);
+    const parentChain = getParentChain(id);
+    activeEdgeSet.clear();
+    eset.forEach(i => activeEdgeSet.add(i));
+
+    /* 更新节点 alpha */
+    nodeSprites.forEach((sp, i) => {
+        sp.userData.targetOpacity = nset.has(i) ? 1.0 : 0.08;
+        if (i === id) {
+            sp.userData.targetBoost = 2.2;
+        } else if (parentChain.has(i)) {
+            sp.userData.targetBoost = 1.6;
+        } else if (nset.has(i)) {
+            sp.userData.targetBoost = 1.2;
+        } else {
+            sp.userData.targetBoost = 0.6;
+        }
+    });
+    /* 更新边 alpha */
+    for (let i = 0; i < links.length; i++) {
+        const on = eset.has(i);
+        edgeAlphas[i*2] = on ? 1.0 : 0.04;
+        edgeAlphas[i*2+1] = on ? 1.0 : 0.04;
+    }
+    edgeGeo.attributes.alpha.needsUpdate = true;
+    edgeMat.uniforms.uGlobalOpacity.value = 0.9;
+
+    /* 星云暗一点 */
+    nebulae.forEach(sp => { sp.userData.targetOpacity = 0.02; });
+
+    /* 相机飞行 */
+    const targetPos = new THREE.Vector3(n.x, n.y, n.z);
+    const dir = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
+    const newCamPos = targetPos.clone().add(dir.multiplyScalar(180));
+    camAnim = {
+        fromPos: camera.position.clone(),
+        toPos:   newCamPos,
+        fromTarget: controls.target.clone(),
+        toTarget:   targetPos,
+        start: performance.now(),
+        duration: 1100
+    };
+    controls.autoRotate = false;
+
+    /* 更新面板 */
+    panelPitch.classList.remove('active');
+    panelFocus.classList.add('active');
+    rightPanel.classList.add('focused');
+
+    const featHtml = (n.feat || '').split('|').filter(f => f && f !== '无')
+        .map(f => `<span class="focus-feat">${f}</span>`).join('');
+
+    const buildList = (ids, emptyText) => {
+        if (!ids || ids.size === 0) return `<div style="font-size:12px;color:#64748b;padding:4px 8px">${emptyText}</div>`;
+        return [...ids].slice(0, 40).map(i => {
+            const nx = nodes[i];
+            return `<div class="related-item" data-id="${i}" style="--c:${L1_CSS[nx.l1]}">
+                        <div class="ri-dot"></div><span>${nx.l4}</span>
+                    </div>`;
+        }).join('');
+    };
+
+    focusBody.innerHTML = `
+        <div class="focus-title" style="--fc:${L1_CSS[n.l1]}">${n.l4}</div>
+        <div class="focus-path">${n.l1} › ${n.l2} › ${n.l3}</div>
+        ${featHtml ? `<div class="focus-feats">${featHtml}</div>` : ''}
+        <div class="focus-meta">
+            <div class="focus-meta-item"><b>${n.depth}</b>拓扑深度</div>
+            <div class="focus-meta-item"><b>${n.degree}</b>星辉强度</div>
+            <div class="focus-meta-item"><b>${ancestors.size}</b>前置星点</div>
+            <div class="focus-meta-item"><b>${descendants.size}</b>后继星点</div>
+        </div>
+        <div class="focus-section-title">前置星链 · Prerequisites</div>
+        <div class="related-list">${buildList(ancestors, '该节点是起始源点')}</div>
+        <div class="focus-section-title">后继星链 · Descendants</div>
+        <div class="related-list">${buildList(descendants, '该节点是末端叶节点')}</div>
+        <button class="btn-close-focus" id="btn-close-focus">✕ 退出聚焦</button>
+    `;
+    /* 相关节点点击 */
+    focusBody.querySelectorAll('.related-item').forEach(el => {
+        el.addEventListener('click', () => focusOnNode(parseInt(el.dataset.id, 10)));
+    });
+    document.getElementById('btn-close-focus').addEventListener('click', clearFocus);
+}
+
+function clearFocus() {
+    currentFocus = null;
+    activeEdgeSet.clear();
+    nodeSprites.forEach(sp => { sp.userData.targetOpacity = 0.95; sp.userData.targetBoost = 1.0; });
+    for (let i = 0; i < edgeAlphas.length; i++) edgeAlphas[i] = 1.0;
+    edgeGeo.attributes.alpha.needsUpdate = true;
+    edgeMat.uniforms.uGlobalOpacity.value = 0.28;
+    nebulae.forEach(sp => { sp.userData.targetOpacity = 0.05; });
+
+    /* 相机缓慢回到 fit */
+    camAnim = {
+        fromPos: camera.position.clone(),
+        toPos:   new THREE.Vector3(0, 80, 620),
+        fromTarget: controls.target.clone(),
+        toTarget:   new THREE.Vector3(0, 0, 0),
+        start: performance.now(),
+        duration: 1200
+    };
+    if (btnAuto.classList.contains('active')) controls.autoRotate = true;
+
+    panelFocus.classList.remove('active');
+    panelPitch.classList.add('active');
+    rightPanel.classList.remove('focused');
+
+    /* 清空粒子 */
+    for (const p of particleSlots) p.active = false;
+}
+
+/* Esc 退出 */
+document.addEventListener('keydown', e => { if (e.key === 'Escape') clearFocus(); });
+
+/* ═══════════════════════════════════════════════════════════════
+   12. UI：星系筛选 / 搜索 / 自转 / 重置
+═══════════════════════════════════════════════════════════════ */
+let filterL1 = 'all';
+document.querySelectorAll('.galaxy').forEach(g => {
+    g.addEventListener('click', () => {
+        document.querySelectorAll('.galaxy').forEach(x => x.classList.remove('active'));
+        g.classList.add('active');
+        filterL1 = g.dataset.l1;
+        applyFilter();
+    });
+});
+function applyFilter() {
+    if (currentFocus !== null) clearFocus();
+    if (filterL1 === 'all') {
+        nodeSprites.forEach(sp => { sp.userData.targetOpacity = 0.95; sp.userData.targetBoost = 1.0; });
+        for (let i = 0; i < edgeAlphas.length; i++) edgeAlphas[i] = 1.0;
+        edgeMat.uniforms.uGlobalOpacity.value = 0.28;
+    } else {
+        nodeSprites.forEach(sp => {
+            const on = sp.userData.node.l1 === filterL1;
+            sp.userData.targetOpacity = on ? 1.0 : 0.08;
+            sp.userData.targetBoost = on ? 1.15 : 0.6;
+        });
+        for (let i = 0; i < links.length; i++) {
+            const s = links[i].source, t = links[i].target;
+            if (!s || !t) continue;
+            const on = s.l1 === filterL1 && t.l1 === filterL1;
+            edgeAlphas[i*2] = on ? 1.0 : 0.03;
+            edgeAlphas[i*2+1] = on ? 1.0 : 0.03;
+        }
+        edgeMat.uniforms.uGlobalOpacity.value = 0.6;
+    }
+    edgeGeo.attributes.alpha.needsUpdate = true;
+}
+
+const searchBox = document.getElementById('search');
+searchBox.addEventListener('input', () => {
+    const q = searchBox.value.trim().toLowerCase();
+    if (!q) { applyFilter(); return; }
+    const matched = new Set();
+    nodes.forEach(n => {
+        if (n.l4.toLowerCase().includes(q) || n.l3.toLowerCase().includes(q) ||
+            n.l2.toLowerCase().includes(q) || (n.feat || '').toLowerCase().includes(q)) matched.add(n.id);
+    });
+    nodeSprites.forEach((sp) => {
+        const hit = matched.has(sp.userData.id);
+        sp.userData.targetOpacity = hit ? 1.0 : 0.05;
+        sp.userData.targetBoost = hit ? 1.4 : 0.6;
+    });
+    for (let i = 0; i < links.length; i++) {
+        const s = links[i].source, t = links[i].target;
+        if (!s || !t) continue;
+        const on = matched.has(s.id) && matched.has(t.id);
+        edgeAlphas[i*2] = on ? 1.0 : 0.02;
+        edgeAlphas[i*2+1] = on ? 1.0 : 0.02;
+    }
+    edgeGeo.attributes.alpha.needsUpdate = true;
+    edgeMat.uniforms.uGlobalOpacity.value = 0.6;
+});
+
+const btnAuto = document.getElementById('btn-auto');
+btnAuto.classList.add('active');
+btnAuto.addEventListener('click', () => {
+    controls.autoRotate = !controls.autoRotate;
+    btnAuto.classList.toggle('active', controls.autoRotate);
+});
+document.getElementById('btn-reset').addEventListener('click', () => {
+    clearFocus();
+    searchBox.value = '';
+    filterL1 = 'all';
+    document.querySelectorAll('.galaxy').forEach(x => x.classList.toggle('active', x.dataset.l1 === 'all'));
+    applyFilter();
+    camAnim = {
+        fromPos: camera.position.clone(),
+        toPos:   new THREE.Vector3(0, 80, 620),
+        fromTarget: controls.target.clone(),
+        toTarget:   new THREE.Vector3(0, 0, 0),
+        start: performance.now(),
+        duration: 1100
+    };
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   13. 投资亮点轮播
+═══════════════════════════════════════════════════════════════ */
+const core = [...nodes].sort((a, b) => b.degree - a.degree).slice(0, 5);
+const pitches = [
+    { num: nodes.length, unit: '个', title: '全景知识星点',
+      desc: '覆盖小学六年数学课标全部原子知识点，拓扑深度 18 层，<b>国内最细粒度的 K-6 数学知识体系</b>之一。' },
+    { num: links.length, unit: '条', title: '依赖血脉网络',
+      desc: '每一条脉络都是真实的教学前置关系。<b>LLM 在此之上可做精准诊断、超纲判断与个性化学习路径推荐</b>。' },
+    { num: 5, unit: '颗', title: '核心枢纽星',
+      desc: `如 <b>"${core[0]?.l4 || ''}"</b>、<b>"${core[1]?.l4 || ''}"</b> 等，支撑起整个学科。<b>学生卡壳 80% 聚焦在这类节点</b>。` },
+    { num: 4, unit: '大星系', title: '学科战略地图',
+      desc: '数与代数 · 图形与几何 · 统计与概率 · 综合与实践，<b>可直接驱动课程设计、内容生产、自适应学习</b>三类商业化产品。' },
+    { num: maxDepth, unit: '层', title: '最深学习链',
+      desc: '从"10以内点数"到"异分母分数加法"的多层前置链，是<b>人类数学智能发育的骨骼</b>，也是 AI 教育的关键底座。' }
+];
+const pitchSlot = document.getElementById('pitch-slot');
+const pitchDots = document.getElementById('pitch-dots');
+pitches.forEach((p, i) => {
+    const d = document.createElement('div');
+    d.className = 'pitch-slide' + (i === 0 ? ' active' : '');
+    d.innerHTML = `
+        <div class="big-num">${p.num}<span class="big-unit">${p.unit}</span></div>
+        <div class="big-title">${p.title}</div>
+        <div class="big-desc">${p.desc}</div>
+    `;
+    pitchSlot.appendChild(d);
+    const dot = document.createElement('span');
+    if (i === 0) dot.className = 'active';
+    dot.addEventListener('click', () => showPitch(i));
+    pitchDots.appendChild(dot);
+});
+let pitchIdx = 0;
+function showPitch(i) {
+    pitchIdx = i;
+    pitchSlot.querySelectorAll('.pitch-slide').forEach((s, k) => s.classList.toggle('active', k === i));
+    pitchDots.querySelectorAll('span').forEach((d, k) => d.classList.toggle('active', k === i));
+}
+setInterval(() => { if (panelPitch.classList.contains('active')) showPitch((pitchIdx + 1) % pitches.length); }, 6000);
+
+/* ═══════════════════════════════════════════════════════════════
+   14. 数字计数
+═══════════════════════════════════════════════════════════════ */
+function countUp(el, target, dur = 1800) {
+    const start = performance.now();
+    function step(t) {
+        const p = Math.min((t - start) / dur, 1);
+        const e = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(target * e);
+        if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+}
+const l1Count = {};
+nodes.forEach(n => l1Count[n.l1] = (l1Count[n.l1] || 0) + 1);
+document.getElementById('g-all').textContent = `${nodes.length} 星点 · ${links.length} 脉络`;
+document.getElementById('g-1').textContent = `${l1Count['数与代数']   || 0} 星点`;
+document.getElementById('g-2').textContent = `${l1Count['图形与几何'] || 0} 星点`;
+document.getElementById('g-3').textContent = `${l1Count['统计与概率'] || 0} 星点`;
+document.getElementById('g-4').textContent = `${l1Count['综合与实践'] || 0} 星点`;
+
+/* ═══════════════════════════════════════════════════════════════
+   15. 背景星野（2D Canvas）
+═══════════════════════════════════════════════════════════════ */
+const sf = document.getElementById('starfield');
+const sfCtx = sf.getContext('2d');
+function sfResize() { sf.width = window.innerWidth; sf.height = window.innerHeight; }
+sfResize();
+const STARS = [];
+for (let i = 0; i < 300; i++) {
+    STARS.push({
+        x: Math.random() * sf.width, y: Math.random() * sf.height,
+        r: Math.random() * 1.4 + 0.2,
+        a: Math.random() * 0.7 + 0.25,
+        tw: Math.random() * Math.PI * 2, sp: 0.008 + Math.random() * 0.018,
+        col: ['#e0f2fe', '#bae6fd', '#c4b5fd', '#fef3c7'][Math.floor(Math.random() * 4)]
+    });
+}
+function drawStars() {
+    sfCtx.clearRect(0, 0, sf.width, sf.height);
+    for (const s of STARS) {
+        s.tw += s.sp;
+        const a = s.a * (0.4 + 0.6 * Math.sin(s.tw));
+        sfCtx.fillStyle = s.col;
+        sfCtx.globalAlpha = a;
+        sfCtx.beginPath();
+        sfCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        sfCtx.fill();
+    }
+    sfCtx.globalAlpha = 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   16. 主循环：呼吸 / 粒子 / 相机动画
+═══════════════════════════════════════════════════════════════ */
+const clock = new THREE.Clock();
+function easeInOutCubic(t) { return t < 0.5 ? 4 * t ** 3 : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+
+// 缓存 L1 颜色避免每帧新建
+const L1_COLOR_CACHE = {};
+for (const k in L1_COLORS) L1_COLOR_CACHE[k] = new THREE.Color(L1_COLORS[k]);
+
+function spawnParticles() {
+    if (activeEdgeSet.size === 0) return;
+    const edgeArr = [...activeEdgeSet];
+    // 每条活跃边每帧有稳定概率冒一颗粒子，保证密集且均匀
+    const perEdgeChance = Math.min(0.9, 1.5 / Math.max(edgeArr.length, 1));
+    for (const slot of particleSlots) {
+        if (slot.active) continue;
+        if (Math.random() < 0.06) {
+            slot.edgeIdx = edgeArr[Math.floor(Math.random() * edgeArr.length)];
+            slot.t = 0;
+            slot.speed = 0.010 + Math.random() * 0.014;
+            slot.wobble = Math.random() * Math.PI * 2;
+            slot.active = true;
+        }
+    }
+}
+function updateParticles() {
+    const pos = particleGeo.attributes.position.array;
+    const col = particleGeo.attributes.color.array;
+    const siz = particleGeo.attributes.size.array;
+    for (let i = 0; i < particleSlots.length; i++) {
+        const slot = particleSlots[i];
+        if (!slot.active) {
+            siz[i] = 0;
+            continue;
+        }
+        slot.t += slot.speed;
+        if (slot.t >= 1) { slot.active = false; siz[i] = 0; continue; }
+        const link = links[slot.edgeIdx];
+        const s = link.source, tg = link.target;
+        if (!s || !tg) { siz[i] = 0; continue; }
+        const t = slot.t;
+        // 位置：轻微横向摆动增加生命感
+        pos[i*3]   = s.x + (tg.x - s.x) * t;
+        pos[i*3+1] = s.y + (tg.y - s.y) * t;
+        pos[i*3+2] = s.z + (tg.z - s.z) * t;
+        // 颜色：从源节点色渐变到目标节点色（指示依赖方向）
+        const cs = L1_COLOR_CACHE[s.l1];
+        const ct = L1_COLOR_CACHE[tg.l1];
+        col[i*3]     = cs.r + (ct.r - cs.r) * t;
+        col[i*3 + 1] = cs.g + (ct.g - cs.g) * t;
+        col[i*3 + 2] = cs.b + (ct.b - cs.b) * t;
+        // 尺寸：非对称包络——在靠近 0.7 处最大（指示朝后继节点"冲刺"）
+        // envelope = t^0.5 * (1 - t)^0.8，峰值偏后
+        const env = Math.pow(t, 0.5) * Math.pow(1 - t, 0.8);
+        siz[i] = 14 * env * 2.1; // 峰值约 7~9
+    }
+    particleGeo.attributes.position.needsUpdate = true;
+    particleGeo.attributes.color.needsUpdate = true;
+    particleGeo.attributes.size.needsUpdate = true;
+}
+
+let lastTime = performance.now();
+function animate() {
+    requestAnimationFrame(animate);
+    const now = performance.now();
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now;
+    const t = now * 0.001;
+
+    /* 节点呼吸：尺寸 + 透明度 */
+    for (const sp of nodeSprites) {
+        const d = sp.userData;
+        const target = d.targetOpacity != null ? d.targetOpacity : d.baseOpacity;
+        sp.material.opacity += (target - sp.material.opacity) * Math.min(1, dt * 5);
+        const boost = d.targetBoost != null ? d.targetBoost : 1.0;
+        sp.userData.currentBoost = (d.currentBoost || 1.0) + (boost - (d.currentBoost || 1.0)) * Math.min(1, dt * 4);
+        const pulse = 1 + 0.09 * Math.sin(t * 1.4 * d.speed + d.phase);
+        const sz = d.baseSize * pulse * sp.userData.currentBoost;
+        sp.scale.set(sz, sz, 1);
+    }
+
+    /* 星云呼吸 */
+    for (const sp of nebulae) {
+        const d = sp.userData;
+        const target = d.targetOpacity != null ? d.targetOpacity : d.baseOpacity;
+        sp.material.opacity += (target - sp.material.opacity) * Math.min(1, dt * 2);
+        const s = d.baseScale * (1 + 0.04 * Math.sin(t * 0.4 + d.phase));
+        sp.scale.set(s, s, 1);
+    }
+
+    /* 整体极缓旋转（更梦幻） */
+    if (!currentFocus && !camAnim) {
+        universeGroup.rotation.z = Math.sin(t * 0.05) * 0.02;
+        universeGroup.position.y = Math.sin(t * 0.25) * 6;
+    }
+
+    /* 边呼吸（全局轻微脉动） */
+    if (currentFocus === null) {
+        edgeMat.uniforms.uGlobalOpacity.value = 0.24 + 0.06 * Math.sin(t * 0.8);
+    } else {
+        edgeMat.uniforms.uGlobalOpacity.value = 0.8 + 0.15 * Math.sin(t * 2.2);
+    }
+
+    /* 粒子 */
+    spawnParticles();
+    updateParticles();
+
+    /* 相机飞行 */
+    if (camAnim) {
+        const p = Math.min((now - camAnim.start) / camAnim.duration, 1);
+        const e = easeInOutCubic(p);
+        camera.position.lerpVectors(camAnim.fromPos, camAnim.toPos, e);
+        controls.target.lerpVectors(camAnim.fromTarget, camAnim.toTarget, e);
+        if (p >= 1) camAnim = null;
+    }
+
+    controls.update();
+    drawStars();
+    composer.render();
+}
+animate();
+
+/* ═══════════════════════════════════════════════════════════════
+   17. Resize
+═══════════════════════════════════════════════════════════════ */
+window.addEventListener('resize', () => {
+    W = window.innerWidth; H = window.innerHeight;
+    camera.aspect = W / H;
+    camera.updateProjectionMatrix();
+    renderer.setSize(W, H);
+    composer.setSize(W, H);
+    bloomPass.setSize(W, H);
+    sfResize();
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   18. Intro 淡出 + 计数（场景就绪后立刻触发）
+═══════════════════════════════════════════════════════════════ */
+requestAnimationFrame(() => {
+    setTimeout(() => {
+        const intro = document.getElementById('intro');
+        if (intro) {
+            intro.classList.add('fade-out');
+            setTimeout(() => { intro.style.display = 'none'; }, 1500);
+        }
+        countUp(document.getElementById('stat-nodes'), nodes.length);
+        countUp(document.getElementById('stat-edges'), links.length);
+        countUp(document.getElementById('stat-roots'), nodes.filter(n => n.inDeg === 0).length);
+        countUp(document.getElementById('stat-depth'), maxDepth);
+    }, 1200);
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   19. 接收父页面消息：高亮指定知识点
+═══════════════════════════════════════════════════════════════ */
+window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'focusNode' && e.data.nodeName) {
+        const targetNode = nodes.find(n => n.l4 === e.data.nodeName);
+        if (targetNode) {
+            focusOnNode(targetNode.id);
+        }
+    }
+});
+
+</script>
+</body>
+</html>

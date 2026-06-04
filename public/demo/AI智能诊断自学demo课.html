@@ -28,6 +28,8 @@
         @keyframes tagPulse{0%{transform:scale(1)}50%{transform:scale(1.08);box-shadow:0 0 8px rgba(88,166,255,.4)}100%{transform:scale(1)}}
         .ide-window{flex:1;background:#010409;border:1px solid var(--border-dark);border-radius:10px;padding:16px;overflow-y:auto;font-family:'JetBrains Mono','Courier New',monospace;font-size:.78rem;line-height:1.55;box-shadow:inset 0 2px 8px rgba(0,0,0,.5);position:relative;min-height:0}
         .ide-window::before{content:attr(data-filename);position:absolute;top:0;left:0;background:var(--border-dark);color:var(--text-dark-sub);font-size:.65rem;padding:3px 10px;border-bottom-right-radius:6px}
+        .galaxy-panel{width:100%;height:280px;position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border-dark);background:#000;flex-shrink:0}
+        .galaxy-panel iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
         .json-key{color:#79c0ff}.json-string{color:#a5d6ff}.json-number{color:#ff7b72}.json-boolean{color:#ff7b72}.json-null{color:#8b949e}
         .strategy-card{margin-top:14px;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);padding:14px;border-radius:10px;flex-shrink:0;transition:all .3s}
         .strategy-card.updated{animation:cardGlow .8s ease}
@@ -266,6 +268,9 @@
             <div class="tag" id="tagSolo">SOLO: —</div>
             <div class="tag ui-tag" id="tagTriple">Triple Code: A(言语码)</div>
         </div>
+    </div>
+    <div class="galaxy-panel">
+        <iframe src="knowledge-galaxy/%E5%B0%8F%E5%AD%A6%E6%95%B0%E5%AD%A6%E7%9F%A5%E8%AF%86%E6%98%9F%E6%B2%B3-3D%E5%AE%87%E5%AE%99%E7%89%88.html"></iframe>
     </div>
     <div class="ide-window" id="jsonView" data-filename="AI_Agent_Payload.json">
         <span class="json-key">"Status"</span>: <span class="json-string">"等待选择题目..."</span>
@@ -992,7 +997,7 @@ const Backend={
     updateTags(tags){if(tags.phase){const t=document.getElementById('tagPhase');t.textContent=`Phase: ${tags.phase}`;this._pulse(t);}if(tags.solo){const t=document.getElementById('tagSolo');t.textContent=tags.solo;this._pulse(t);}if(tags.triple){const t=document.getElementById('tagTriple');t.textContent=tags.triple;this._pulse(t);}},
     updateStrategy(title,desc){document.getElementById('strategyTitle').textContent=title;document.getElementById('strategyDesc').textContent=desc;const c=document.getElementById('strategyCard');c.classList.remove('updated');void c.offsetWidth;c.classList.add('updated');},
     addTimeline(type,text){const tl=document.getElementById('timeline');const item=document.createElement('div');item.className='tl-item';item.innerHTML=`<div class="tl-dot ${type}"></div><div class="tl-text">${text}</div>`;tl.appendChild(item);tl.scrollTop=tl.scrollHeight;},
-    updateKG(q){const sec=document.getElementById('kgSection');if(!DataLayer.ready||!q.knowledge?.L4){sec.style.display='none';return;}const ctx=DataLayer.getKnowledgeContext(q.knowledge.L4);if(!ctx){sec.style.display='none';return;}sec.style.display='';document.getElementById('kgBreadcrumb').innerHTML=[ctx.l1?`<span class="kg-crumb l1">${ctx.l1}</span><span class="kg-arrow">›</span>`:'',ctx.l2?`<span class="kg-crumb l2">${ctx.l2}</span><span class="kg-arrow">›</span>`:'',ctx.l3?`<span class="kg-crumb l3">${ctx.l3}</span><span class="kg-arrow">›</span>`:'',`<span class="kg-crumb l4">${ctx.l4}</span>`].join('');let html='';if(ctx.preDeps.length)html+=`<div class="kg-dep-label">⬆ 前置</div><div class="kg-dep-list">${ctx.preDeps.map(d=>`<span class="kg-dep-tag pre">${d}</span>`).join('')}</div>`;if(ctx.postDeps.length)html+=`<div class="kg-dep-label" style="margin-top:4px">⬇ 后继</div><div class="kg-dep-list">${ctx.postDeps.slice(0,5).map(d=>`<span class="kg-dep-tag post">${d}</span>`).join('')}</div>`;document.getElementById('kgDeps').innerHTML=html;},
+    updateKG(q){const sec=document.getElementById('kgSection');if(!DataLayer.ready||!q.knowledge?.L4){sec.style.display='none';return;}const ctx=DataLayer.getKnowledgeContext(q.knowledge.L4);if(!ctx){sec.style.display='none';return;}sec.style.display='';const galaxyIframe=document.querySelector('.galaxy-panel iframe');if(galaxyIframe&&galaxyIframe.contentWindow){galaxyIframe.contentWindow.postMessage({type:'focusNode',nodeName:ctx.l4,path:[ctx.l1,ctx.l2,ctx.l3,ctx.l4]},'*');}document.getElementById('kgBreadcrumb').innerHTML=`<span style="color:var(--text-dark-sub);font-size:.8rem;">🌟 当前星点：${ctx.l4}</span>`;let html='';if(ctx.preDeps.length)html+=`<div class="kg-dep-label" style="margin-top:6px">⬆ 前置 ${ctx.preDeps.length} 个</div>`;if(ctx.postDeps.length)html+=`<div class="kg-dep-label" style="margin-top:4px">⬇ 后继 ${ctx.postDeps.length} 个</div>`;document.getElementById('kgDeps').innerHTML=html;},
     updateIdeas(ideas){const sec=document.getElementById('ideaSection');if(!ideas?.length){sec.style.display='none';return;}sec.style.display='';document.getElementById('ideaChips').innerHTML=ideas.map(i=>{const info=DataLayer.getIdeaInfo(i);return info?`<span class="idea-chip"><span class="idea-id">${i.match(/ID-\d+/)?.[0]||''}</span>${info.name}</span>`:`<span class="idea-chip">${i}</span>`;}).join('');const ct=ideas.map(i=>{const info=DataLayer.getIdeaInfo(i);return info?`${info.name}：${info.cross}`:null;}).filter(Boolean);document.getElementById('ideaCross').innerHTML=ct.length?ct.join('<br>'):'';},
     _pulse(el){el.classList.remove('updated');void el.offsetWidth;el.classList.add('updated');}
 };
@@ -1408,7 +1413,7 @@ const Engine={
         const s=this.state,flow=DIAGNOSIS_FLOWS[s.flowId],q=QUESTION_BANK[flow.consolidateId];
         s.phase='consolidate';s.currentQ=q;UI.updateProgress(2);
         Backend.addTimeline('info','<b>巩固</b>');Backend.updateTags({phase:"🏋️ 巩固"});
-        UI.setQuestion(q,'🏋️ 巩固练习');UI.clearBoard();
+        UI.setQuestion(q,'🏋️ 巩固练习');UI.clearBoard();Backend.updateKG(q);
         await this.delay(400);UI.addMsg('ai',flow.consolidatePrompt||'巩固~');UI.showInputBar(`答案？（${q.unit}）`);
     },
     async processConsolidate(val){
@@ -1434,7 +1439,7 @@ const Engine={
         const s=this.state,flow=DIAGNOSIS_FLOWS[s.flowId],q=QUESTION_BANK[flow.levelUpId];
         s.phase='levelUp';s.currentQ=q;UI.updateProgress(3);
         Backend.addTimeline('info','<b>升维</b>');Backend.updateTags({phase:"🚀 升维"});
-        UI.setQuestion(q,'🚀 升维挑战');UI.clearBoard();
+        UI.setQuestion(q,'🚀 升维挑战');UI.clearBoard();Backend.updateKG(q);
         await this.delay(400);UI.addMsg('ai',flow.levelUpPrompt||'挑战~');UI.showInputBar(`答案？（${q.unit}）`);
     },
     async processLevelUp(val){
