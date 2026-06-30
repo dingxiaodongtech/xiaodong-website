@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 智能诊断自学课 · 排水法</title>
+<style>
+/* ═══════════════════════════════════════════════
+   知识星河 · 自学诊断课  V3.0
+   基于 questions_v2.json + 图谱引擎
+   ═══════════════════════════════════════════════ */
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { height:100%; overflow:hidden; }
+body {
+  font-family: 'PingFang SC','Microsoft YaHei',-apple-system,sans-serif;
+  background: #000; color: #e6edf8;
+  -webkit-font-smoothing: antialiased; user-select: none;
+}
+body::before {
+  content:''; position:fixed; inset:0; z-index:-3;
+  background:
+    radial-gradient(ellipse 80% 60% at 30% 25%, rgba(88,28,135,.35), transparent 55%),
+    radial-gradient(ellipse 60% 70% at 75% 75%, rgba(6,182,212,.25), transparent 55%),
+    radial-gradient(circle at 50% 50%, #0b1029 0%, #000 75%);
+}
+
+/* ═══ Glass ═══ */
+.glass { background:rgba(15,23,42,.45); backdrop-filter:blur(22px) saturate(180%); -webkit-backdrop-filter:blur(22px); border:1px solid rgba(148,163,184,.15); border-radius:18px; }
+.glass-heavy { background:rgba(15,23,42,.65); backdrop-filter:blur(28px); border:1px solid rgba(148,163,184,.18); border-radius:16px; }
+.grad-text { background:linear-gradient(135deg,#e0f2fe 20%,#a5b4fc 60%,#f0abfc 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+
+/* ═══ Layout ═══ */
+#app { display:flex; flex-direction:column; height:100vh; max-width:640px; margin:0 auto; position:relative; z-index:1; }
+
+/* Brand */
+.brand { display:flex; align-items:center; gap:12px; padding:16px 20px; flex-shrink:0; }
+.orb { width:36px; height:36px; border-radius:50%; background:radial-gradient(circle at 30% 30%,#fff,#00d4ff 40%,#7c3aed 80%); box-shadow:0 0 16px rgba(0,212,255,.6); animation:orb 3.8s ease-in-out infinite; }
+@keyframes orb { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+.brand h1 { font-size:18px; font-weight:700; letter-spacing:1px; }
+
+/* Progress bar */
+.progress { display:flex; align-items:center; gap:6px; padding:0 20px 12px; flex-shrink:0; }
+.progress-dot { width:8px; height:8px; border-radius:50%; background:rgba(148,163,184,.2); transition:all .3s; }
+.progress-dot.done { background:#34d399; box-shadow:0 0 8px #34d399; }
+.progress-dot.active { background:#a5b4fc; box-shadow:0 0 12px #a5b4fc; width:24px; border-radius:4px; }
+
+/* Main area */
+.main { flex:1; overflow-y:auto; padding:0 20px 20px; display:flex; flex-direction:column; gap:16px; }
+.main::-webkit-scrollbar { width:4px; }
+.main::-webkit-scrollbar-thumb { background:rgba(148,163,184,.25); border-radius:2px; }
+
+/* Cards */
+.card { padding:20px; }
+.card-title { font-size:13px; font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.card-title .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+
+/* Question */
+.q-text { font-size:18px; line-height:1.7; margin-bottom:20px; }
+.q-text b { color:#c7d2fe; font-weight:700; }
+.answer-area { display:flex; gap:8px; align-items:center; }
+.answer-input { flex:1; padding:12px 16px; background:rgba(15,23,42,.8); border:1px solid rgba(148,163,184,.15); border-radius:12px; color:#e6edf8; font-size:16px; outline:none; transition:all .3s; }
+.answer-input:focus { border-color:rgba(165,180,252,.5); box-shadow:0 0 0 3px rgba(165,180,252,.12); }
+.answer-input::placeholder { color:#64748b; }
+.answer-unit { color:#94a3b8; font-size:14px; flex-shrink:0; }
+
+/* Buttons */
+.btn { padding:10px 20px; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; transition:all .3s; border:none; }
+.btn-primary { background:linear-gradient(135deg,rgba(124,58,237,.5),rgba(6,182,212,.5)); border:1px solid rgba(165,180,252,.4); color:#fff; box-shadow:0 0 20px rgba(124,58,237,.3); }
+.btn-primary:hover { transform:scale(1.03); box-shadow:0 0 30px rgba(124,58,237,.5); }
+.btn-glass { background:rgba(15,23,42,.45); backdrop-filter:blur(16px); border:1px solid rgba(148,163,184,.15); color:#94a3b8; }
+.btn-glass:hover { border-color:rgba(165,180,252,.4); color:#e6edf8; }
+.btn-ghost { background:rgba(148,163,184,.08); border:1px solid rgba(148,163,184,.1); color:#94a3b8; font-size:12px; padding:6px 12px; border-radius:8px; cursor:pointer; }
+
+/* Choices */
+.choices { display:flex; flex-direction:column; gap:8px; }
+.choice { padding:14px 16px; border-radius:12px; cursor:pointer; transition:all .2s; background:rgba(15,23,42,.4); border:1px solid rgba(148,163,184,.12); color:#e6edf8; font-size:15px; text-align:left; display:flex; align-items:center; gap:10px; }
+.choice:hover { background:rgba(165,180,252,.1); border-color:rgba(165,180,252,.3); }
+.choice.selected { background:linear-gradient(135deg,rgba(124,58,237,.25),rgba(6,182,212,.15)); border-color:rgba(165,180,252,.5); }
+.choice .letter { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; background:rgba(148,163,184,.1); flex-shrink:0; }
+.choice.selected .letter { background:linear-gradient(135deg,#7c3aed,#06b6d4); color:#fff; }
+
+/* Feedback */
+.feedback { padding:16px; border-radius:14px; font-size:14px; line-height:1.6; }
+.feedback.correct { background:rgba(52,211,153,.08); border:1px solid rgba(52,211,153,.2); }
+.feedback.wrong { background:rgba(239,68,68,.06); border:1px solid rgba(239,68,68,.15); }
+.feedback.hint { background:rgba(251,191,36,.06); border:1px solid rgba(251,191,36,.15); }
+.feedback-tag { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; margin:4px 4px 0 0; }
+.feedback-tag.ok { background:rgba(52,211,153,.15); color:#34d399; }
+.feedback-tag.err { background:rgba(239,68,68,.12); color:#fca5a5; }
+
+/* Board */
+.board { padding:16px; border-radius:14px; background:rgba(15,23,42,.5); border:1px solid rgba(148,163,184,.1); }
+.board-step { font-size:13px; line-height:1.8; padding:2px 0; }
+.board-step .step-num { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:rgba(165,180,252,.2); color:#a5b4fc; font-size:12px; font-weight:700; margin-right:8px; }
+.board-conclusion { margin-top:12px; padding-top:10px; border-top:1px solid rgba(148,163,184,.1); font-size:14px; font-weight:600; color:#34d399; }
+
+/* Visual: tank */
+.visual-tank { position:relative; width:200px; height:160px; margin:12px auto; }
+.visual-tank .tank-body { position:absolute; bottom:0; left:0; right:0; height:140px; border:2px solid rgba(148,163,184,.3); border-radius:8px; background:rgba(6,182,212,.05); }
+.visual-tank .water { position:absolute; bottom:0; left:2px; right:2px; border-radius:6px; background:linear-gradient(0deg,rgba(6,182,212,.4),rgba(6,182,212,.2)); transition:height .8s; }
+.visual-tank .label { position:absolute; font-size:10px; color:#94a3b8; }
+.visual-tank .label.before { left:-50px; }
+.visual-tank .label.after { right:-50px; }
+.visual-tank .arrow { position:absolute; left:50%; transform:translateX(-50%); color:#34d399; font-size:11px; }
+
+/* Topic cards */
+.topics { display:flex; flex-direction:column; gap:12px; }
+.topic-card { padding:20px; cursor:pointer; transition:all .3s; }
+.topic-card:hover { border-color:rgba(165,180,252,.4); transform:translateY(-2px); box-shadow:0 0 20px rgba(124,58,237,.2); }
+.topic-card .diff { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; }
+.topic-card .diff.easy { background:rgba(52,211,153,.15); color:#34d399; }
+.topic-card .diff.medium { background:rgba(251,191,36,.15); color:#fbbf24; }
+.topic-card .diff.hard { background:rgba(239,68,68,.15); color:#f87171; }
+
+/* Hidden */
+.hidden { display:none !important; }
+
+/* Hook text */
+.hook { font-size:14px; color:#c7d2fe; line-height:1.7; padding:8px 12px; border-left:2px solid rgba(165,180,252,.4); margin-bottom:16px; }
+
+/* Retry counter */
+.retry-info { font-size:12px; color:#64748b; text-align:center; }
+
+/* Report */
+.report-item { padding:10px 14px; border-radius:10px; display:flex; align-items:center; gap:10px; font-size:13px; }
+.report-icon { font-size:20px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// AI 智能诊断自学课 · 单页应用
+// ═══════════════════════════════════════════════
+
+const DATA_URL = '/data/kgraph/questions_v2.json';
+let Q = {};     // Question bank
+let F = {};     // Diagnosis flows
+let T = {};     // Topic info
+let state = {
+  screen: 'landing',    // landing | diagnosing | feedback | board | report
+  currentFlow: null,    // 'Q-001' | 'Q-002' | 'Q-003'
+  currentQid: null,     // current question ID
+  currentStep: 'main',  // main | i0 | d1 | prereq | consolidate | levelup
+  userAnswer: '',
+  attempts: 0,
+  maxAttempts: 2,       // self-correction: 2 tries before showing answer
+  history: [],          // [{qid, answer, correct, feedback}]
+  passedSteps: [],      // ['i0', 'd1'] etc.
+};
+
+function $(sel) { return document.querySelector(sel); }
+function $$(sel) { return document.querySelectorAll(sel); }
+
+// ═══ Load data ═══
+async function init() {
+  try {
+    const r = await fetch(DATA_URL);
+    const data = await r.json();
+    Q = data.QUESTION_BANK || {};
+    F = data.DIAGNOSIS_FLOWS || {};
+    T = data.TOPIC_INFO || {};
+    render('landing');
+  } catch(e) {
+    document.getElementById('app').innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh"><div class="glass" style="padding:32px;text-align:center"><p style="color:#f87171">数据加载失败</p><p style="color:#94a3b8;font-size:13px;margin-top:8px">${e.message}</p><button class="btn btn-primary" style="margin-top:16px" onclick="location.reload()">重试</button></div></div>`;
+  }
+}
+
+// ═══ Render ═══
+function render(screen) {
+  state.screen = screen;
+  const app = $('#app');
+  switch(screen) {
+    case 'landing': renderLanding(app); break;
+    case 'diagnosing': renderDiagnosing(app); break;
+    case 'feedback': renderFeedback(app); break;
+    case 'board': renderBoard(app); break;
+    case 'report': renderReport(app); break;
+  }
+  app.scrollTop = 0;
+}
+
+// ═══ Landing ═══
+function renderLanding(app) {
+  const topics = T;
+  app.innerHTML = `
+    <div class="brand"><div class="orb"></div><div><h1 class="grad-text">AI 智能诊断自学课</h1><p style="font-size:10px;color:#64748b;letter-spacing:2px">SELF-STUDY DIAGNOSTIC</p></div></div>
+    <div class="main">
+      <div class="card glass" style="animation:fadeIn .5s both">
+        <p style="font-size:14px;color:#94a3b8;line-height:1.7;margin-bottom:16px">选择一个主题，AI 会先出一道诊断题。做对了直接升维挑战，做错了自动降维追查——<b style="color:#c7d2fe">就像有老师在旁边一步步帮你找到卡点</b>。</p>
+      </div>
+      <div class="topics">
+        ${Object.entries(topics).map(([id, info]) => `
+          <div class="topic-card glass card-hover" onclick="startFlow('${id}')">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <h3 style="font-size:17px;color:#e6edf8">${info.name}</h3>
+              <span class="diff ${info.diff}">${info.diffLabel}</span>
+            </div>
+            <p style="font-size:13px;color:#94a3b8">${info.desc}</p>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// ═══ Start a diagnosis flow ═══
+function startFlow(flowId) {
+  state.currentFlow = flowId;
+  state.currentStep = 'main';
+  state.currentQid = flowId;
+  state.attempts = 0;
+  state.passedSteps = [];
+  state.history = [];
+  render('diagnosing');
+}
+
+// ═══ Diagnosing screen ═══
+function renderDiagnosing(app) {
+  const q = Q[state.currentQid];
+  if (!q) return render('landing');
+
+  const flow = F[state.currentFlow];
+  const flowLabel = {
+    main: ['主诊断题', '#a5b4fc'],
+    i0: ['降维·裸题', '#fbbf24'],
+    d1: ['降维·基础', '#f87171'],
+    prereq: ['前置追溯', '#c084fc'],
+    consolidate: ['巩固练习', '#34d399'],
+    levelup: ['升维挑战', '#f472b6'],
+  };
+  const [stepLabel, stepColor] = flowLabel[state.currentStep] || ['', ''];
+
+  let answerHTML = '';
+  if (q.scaffold === 'choice' && q.choices) {
+    answerHTML = `<div class="choices">${q.choices.map((c,i) => `
+      <button class="choice ${state.userAnswer == c.value ? 'selected' : ''}" onclick="selectChoice(${JSON.stringify(c.value).replace(/"/g,'&quot;')})">
+        <span class="letter">${'ABCD'[i]}</span> ${c.label}
+      </button>
+    `).join('')}</div>`;
+  } else {
+    answerHTML = `
+      <div class="answer-area">
+        <input class="answer-input" type="text" placeholder="输入答案..." value="${state.userAnswer}" oninput="state.userAnswer=this.value" onkeydown="if(event.key==='Enter')submitAnswer()" autofocus>
+        ${q.unit ? `<span class="answer-unit">${q.unit}</span>` : ''}
+      </div>
+      <button class="btn btn-primary" style="margin-top:12px;width:100%" onclick="submitAnswer()">提交答案</button>
+    `;
+  }
+
+  const progressDots = ['main','i0','d1','prereq'].map(s => {
+    let cls = 'progress-dot';
+    if (state.passedSteps.includes(s)) cls += ' done';
+    if (state.currentStep === s) cls += ' active';
+    return `<div class="${cls}"></div>`;
+  }).join('');
+
+  app.innerHTML = `
+    <div class="brand"><div class="orb"></div><div><h1 class="grad-text">${T[state.currentFlow]?.name || ''}</h1></div></div>
+    <div class="progress">${progressDots}<span style="font-size:10px;color:${stepColor};margin-left:8px">${stepLabel}</span></div>
+    <div class="main">
+      ${q.hook && state.currentStep === 'main' ? `<div class="hook">💡 ${q.hook}</div>` : ''}
+      ${state.currentStep === 'i0' && flow?.dimDownChain?.[0]?.aiPrompt ? `<div class="hook" style="border-color:rgba(251,191,36,.4)">🔬 ${flow.dimDownChain[0].aiPrompt}</div>` : ''}
+      ${state.currentStep === 'd1' && flow?.dimDownChain?.[1]?.aiPrompt ? `<div class="hook" style="border-color:rgba(239,68,68,.4)">🔬 ${flow.dimDownChain[1].aiPrompt}</div>` : ''}
+      ${state.currentStep === 'prereq' && flow?.prereqFallback ? `<div class="hook" style="border-color:rgba(192,132,252,.4)">🔍 ${flow.prereqFallback.message}</div>` : ''}
+      <div class="card glass">
+        <div class="q-text">${q.text}</div>
+        ${state.attempts > 0 ? `<div class="retry-info">第 ${state.attempts} 次尝试（最多 ${state.maxAttempts} 次）</div>` : ''}
+        ${answerHTML}
+      </div>
+    </div>
+  `;
+}
+
+// ═══ Choice selection ═══
+function selectChoice(val) {
+  state.userAnswer = val;
+  submitAnswer();
+}
+
+// ═══ Submit answer ═══
+function submitAnswer() {
+  const q = Q[state.currentQid];
+  if (!q) return;
+
+  const answer = state.userAnswer;
+  if (answer === '' || answer === undefined) return;
+
+  const correct = isCorrect(q, answer);
+  state.history.push({ qid: state.currentQid, answer, correct });
+
+  if (correct) {
+    handleCorrect(q);
+  } else {
+    state.attempts++;
+    if (state.attempts < state.maxAttempts) {
+      // Self-correction: show hint, let them retry
+      showRetryHint(q, answer);
+    } else {
+      // Max attempts: show answer, trigger 降维
+      showFullFeedback(q, answer);
+    }
+  }
+}
+
+function isCorrect(q, answer) {
+  if (q.scaffold === 'choice') {
+    return String(answer) === String(q.answer);
+  }
+  return parseFloat(answer) === q.answer || String(answer).trim() === String(q.answer);
+}
+
+// ═══ Correct handling ═══
+function handleCorrect(q) {
+  const flow = F[state.currentFlow];
+  if (state.currentStep === 'main') {
+    // Passed main! Offer consolidate or level up
+    showCorrectMain(q);
+  } else if (state.currentStep === 'i0') {
+    state.passedSteps.push('i0');
+    showPassedStep(q, 'i0', flow);
+  } else if (state.currentStep === 'd1') {
+    state.passedSteps.push('d1');
+    showPassedStep(q, 'd1', flow);
+  } else if (state.currentStep === 'prereq') {
+    state.passedSteps.push('prereq');
+    showPassedStep(q, 'prereq', flow);
+  } else {
+    showCorrectFeedback(q, '🎉 完全正确！');
+  }
+}
+
+// ═══ Self-correction hint ═══
+function showRetryHint(q, answer) {
+  const ep = q.errorPatterns?.[String(answer)];
+  const hint = ep?.hint || '再想想，换个思路试试？';
+  state.userAnswer = '';
+
+  const app = $('#app');
+  app.innerHTML = `
+    <div class="brand"><div class="orb"></div><div><h1 class="grad-text">${T[state.currentFlow]?.name || ''}</h1></div></div>
+    <div class="main">
+      <div class="feedback hint">
+        <p style="font-size:15px;margin-bottom:8px">🤔 ${hint}</p>
+        ${ep?.retryPrompt ? `<p style="font-size:13px;color:#94a3b8">${ep.retryPrompt}</p>` : ''}
+        ${ep?.diagTags ? `<div style="margin-top:8px">${ep.diagTags.map(t => `<span class="feedback-tag err">${t}</span>`).join('')}</div>` : ''}
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="retryQuestion()">再试一次</button>
+    </div>
+  `;
+}
+
+function retryQuestion() {
+  state.userAnswer = '';
+  render('diagnosing');
+}
+
+// ═══ Full feedback (max attempts) ═══
+function showFullFeedback(q, answer) {
+  const ep = q.errorPatterns?.[String(answer)];
+  const feedback = ep?.feedback || q.defaultFeedback || '答错了，看看正确解法吧。';
+
+  const app = $('#app');
+  app.innerHTML = `
+    <div class="brand"><div class="orb"></div><div><h1 class="grad-text">${T[state.currentFlow]?.name || ''}</h1></div></div>
+    <div class="main">
+      <div class="feedback wrong">
+        <p style="font-size:14px;line-height:1.7">${feedback}</p>
+        ${ep?.diagTags ? `<div style="margin-top:8px">${ep.diagTags.map(t => `<span class="feedback-tag err">${t}</span>`).join('')}</div>` : ''}
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="nextAfterFail()">继续 →</button>
+    </div>
+  `;
+}
+
+function nextAfterFail() {
+  // Trigger 降维 chain
+  const flow = F[state.currentFlow];
+  if (state.currentStep === 'main') {
+    // Go to I0
+    if (flow?.dimDownChain?.[0]) {
+      state.currentStep = 'i0';
+      state.currentQid = flow.dimDownChain[0].id;
+      state.userAnswer = '';
+      state.attempts = 0;
+      render('diagnosing');
+    }
+  } else if (state.currentStep === 'i0') {
+    // Go to D1
+    if (flow?.dimDownChain?.[1]) {
+      state.currentStep = 'd1';
+      state.currentQid = flow.dimDownChain[1].id;
+      state.userAnswer = '';
+      state.attempts = 0;
+      render('diagnosing');
+    }
+  } else if (state.currentStep === 'd1') {
+    // Go to prereq fallback
+    if (flow?.prereqFallback) {
+      state.currentStep = 'prereq';
+      state.currentQid = flow.prereqFallback.questionId;
+      state.userAnswer = '';
+      state.attempts = 0;
+      render('diagnosing');
+    }
+  } else {
+    // End of chain, show report
+    render('report');
+  }
+}
+
+// ═══ Show correct on main ═══
+function showCorrectMain(q) {
+  const flow = F[state.currentFlow];
+  const app = $('#app');
+  app.innerHTML = `
+    <div class="brand"><div class="orb"></div><div><h1 class="grad-text">${T[state.currentFlow]?.name || ''}</h1></div></div>
+    <div class="main">
+      <div class="feedback correct">
+        <p style="font-size:16px">🎉 ${q.correctFeedback}</p>
+        ${q.correctDiagTags ? `<div style="margin-top:8px">${q.correctDiagTags.map(t => `<span class="feedback-tag ok">${t}</span>`).join('')}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:8px">
+        ${flow?.consolidateId ? `<button class="btn btn-glass" style="flex:1" onclick="goConsolidate()">📝 巩固练习</button>` : ''}
+        ${flow?.levelUpId ? `<button class="btn btn-primary" style="flex:1" onclick="goLevelUp()">🚀 升维挑战</button>` : ''}
+      </div>
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="render('landing')">← 返回选题</button>
+    </div>
+  `;
+}
+
+// ═══ Show passed step (降维通过) ═══
+function showPassedStep(q, step, flow) {
+  const explain = {
+    i0: flow?.i0PassExplain || '裸题没问题！说明情境理解OK。',
+    d1: flow?.d1PassExplain || '基础运算没问题！',
+    prereq: flow?.prereqFallback?.onPrereqPass || '前置知识OK！',
+  };
+
+  const app = $('#app');
+  app.innerHTML = `
+    <div class="brand"><div class="orb"></div><div><h1 class="grad-text">${T[state.currentFlow]?.name || ''}</h1></div></div>
+    <div class="main">
+      <div class="feedback correct">
+        <p style="font-size:15px">✅ ${q.correctFeedback}</p>
+        <p style="font-size:14px;color:#94a3b8;margin-top:8px">${explain[step] || ''}</p>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="returnToMain()">回到原题 →</button>
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="render('report')">查看诊断报告</button>
+    </div>
+  `;
+}
+
+function returnToMain() {
+  state.currentStep = 'main';
+  state.currentQid = state.currentFlow;
+  state.userAnswer = '';
+  state.attempts = 0;
+  render('diagnosing');
+}
+
+function goConsolidate() {
+  const flow = F[state.currentFlow];
+  state.currentStep = 'consolidate';
+  state.currentQid = flow.consolidateId;
+  state.userAnswer = '';
+  state.attempts = 0;
+  render('diagnosing');
+}
+
+function goLevelUp() {
+  const flow = F[state.currentFlow];
+  state.currentStep = 'levelup';
+  state.currentQid = flow.levelUpId;
+  state.userAnswer = '';
+  state.attempts = 0;
+  render('diagnosing');
+}
+
+// ═══ Show correct feedback (simple) ═══
+function showCorrectFeedback(q, msg) {
+  const app = $('#app');
+  app.innerHTML = `
+    <div class="brand"><div class="orb"></div><div><h1 class="grad-text">${T[state.currentFlow]?.name || ''}</h1></div></div>
+    <div class="main">
+      <div class="feedback correct"><p style="font-size:16px">${msg || q.correctFeedback}</p></div>
+      <button class="btn btn-primary" style="width:100%" onclick="render('landing')">继续学习 →</button>
+    </div>
+  `;
+}
+
+// ═══ Report ═══
+function renderReport(app) {
+  const flow = F[state.currentFlow];
+  const correctCount = state.history.filter(h => h.correct).length;
+  const totalCount = state.history.length;
+
+  let summary = '';
+  if (correctCount === totalCount && totalCount > 0) {
+    summary = '全部正确！这个知识点掌握得很好。';
+  } else if (state.passedSteps.length > 0) {
+    summary = `经过降维诊断后成功回到原题。薄弱环节：${state.passedSteps.join(' → ')}。`;
+  } else if (state.currentStep === 'prereq') {
+    summary = `问题根源在更早的知识点：${Q[state.currentQid]?.title || '前置知识'}。建议先巩固前置基础。`;
+  } else {
+    summary = '本次诊断完成。建议回顾错题并重新挑战。';
+  }
+
+  app.innerHTML = `
+    <div class="brand"><div class="orb"></div><div><h1 class="grad-text">诊断报告</h1></div></div>
+    <div class="main">
+      <div class="card glass">
+        <p style="font-size:16px;line-height:1.7;margin-bottom:16px">${summary}</p>
+        <div style="display:flex;gap:12px;margin-bottom:16px">
+          <div style="flex:1;text-align:center;padding:12px;border-radius:10px;background:rgba(52,211,153,.08)"><div style="font-size:24px;font-weight:700;color:#34d399">${correctCount}</div><div style="font-size:11px;color:#94a3b8">正确</div></div>
+          <div style="flex:1;text-align:center;padding:12px;border-radius:10px;background:rgba(239,68,68,.06)"><div style="font-size:24px;font-weight:700;color:#f87171">${totalCount - correctCount}</div><div style="font-size:11px;color:#94a3b8">需加强</div></div>
+          <div style="flex:1;text-align:center;padding:12px;border-radius:10px;background:rgba(165,180,252,.08)"><div style="font-size:24px;font-weight:700;color:#a5b4fc">${state.passedSteps.length}</div><div style="font-size:11px;color:#94a3b8">降维步骤</div></div>
+        </div>
+      </div>
+      ${state.history.length > 0 ? `
+        <div class="card glass">
+          <h3 style="font-size:13px;color:#94a3b8;margin-bottom:12px">答题记录</h3>
+          ${state.history.map(h => {
+            const q = Q[h.qid];
+            return `<div class="report-item" style="margin-bottom:4px;background:${h.correct?'rgba(52,211,153,.04)':'rgba(239,68,68,.04)'}">
+              <span class="report-icon">${h.correct ? '✅' : '❌'}</span>
+              <span style="flex:1;color:#e6edf8;font-size:12px">${q?.title || h.qid}</span>
+              <span style="color:#94a3b8;font-size:11px">${isNaN(h.answer) ? h.answer : h.answer + (q?.unit||'')}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      ` : ''}
+      <button class="btn btn-primary" style="width:100%" onclick="startFlow(state.currentFlow)">重新挑战</button>
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="render('landing')">← 选其他主题</button>
+    </div>
+  `;
+}
+
+// ═══ Start ═══
+init();
+</script>
+</body>
+</html>
