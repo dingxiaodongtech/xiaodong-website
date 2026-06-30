@@ -1,0 +1,45 @@
+{
+  "_meta": {
+    "version": "2.6",
+    "compiled_at": "2026-06-29T07:16:36.101Z",
+    "source": "3-小学数学知识图谱.csv",
+    "node_count": 569,
+    "edge_count": 674,
+    "description": "AI版知识图谱 (Machine-Readable)，由图谱编译器从教研版CSV自动生成",
+    "split_at": "2026-06-30T06:56:10.780Z",
+    "module_count": 6
+  },
+  "modules": {
+    "数与代数": {
+      "file": "kg_数与代数.json",
+      "nodes": 347,
+      "edges": 461
+    },
+    "图形与几何": {
+      "file": "kg_图形与几何.json",
+      "nodes": 144,
+      "edges": 142
+    },
+    "统计与概率": {
+      "file": "kg_统计与概率.json",
+      "nodes": 18,
+      "edges": 18
+    },
+    "综合与实践": {
+      "file": "kg_综合与实践.json",
+      "nodes": 19,
+      "edges": 2
+    },
+    "竞赛数学": {
+      "file": "kg_竞赛数学.json",
+      "nodes": 40,
+      "edges": 16
+    },
+    "其他": {
+      "file": "kg_其他.json",
+      "nodes": 1,
+      "edges": 0
+    }
+  },
+  "cross_edges": 35
+}

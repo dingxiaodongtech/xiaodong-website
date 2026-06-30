@@ -1,0 +1,98 @@
+{
+  "_meta": {
+    "version": "1.1",
+    "source": "exam_pattern_compiler.py",
+    "education_csv": "02_知识数据/4-小学数学考法图谱.csv",
+    "total_patterns": 314,
+    "total_tested_by_edges": 652,
+    "total_employs_idea_edges": 450,
+    "compiled_at": "2026-06-29T03:32:07.904Z",
+    "dimension_enum": {
+      "D1": {
+        "PART_WHOLE": "整体-部分模型",
+        "EQUAL_GROUP": "等组模型",
+        "CHANGE": "动态变化模型",
+        "RATIO": "比例分率模型",
+        "CYCLE": "周期同余模型",
+        "NUMBER_SYSTEM": "数系位值模型",
+        "AREA": "面积测度模型",
+        "VOLUME": "体积测度模型",
+        "LENGTH": "长度测度模型",
+        "TRANSFORM": "几何变换模型",
+        "LOGIC": "逻辑推理模型",
+        "OPTIMIZATION": "优化统筹模型",
+        "STATISTICS": "统计概率模型"
+      },
+      "D2": {
+        "D1_FORWARD_SINGLE": "正向单步",
+        "D2_FORWARD_MULTI": "正向多步",
+        "D2_REVERSE_SINGLE": "逆向单步",
+        "D3_FORWARD_MULTI": "复杂正向多步",
+        "D4_REVERSE_MULTI": "复杂逆向多步"
+      },
+      "I": {
+        "I0_RAW": "裸题无隐蔽",
+        "I1_SHALLOW": "浅层隐蔽",
+        "I2_HIDDEN": "深层隐蔽",
+        "I3_DYNAMIC": "动态建模",
+        "I4_REDUNDANT": "冗余干扰"
+      },
+      "C": {
+        "C1_SINGLE": "单一考点",
+        "C2_INTRA_MODULE": "模块内复合",
+        "C3_CROSS_MODULE": "跨模块复合"
+      },
+      "Ch": {
+        "Ch-A": "抽象符号通道",
+        "Ch-V": "视觉图形通道",
+        "Ch-M": "操作体验通道"
+      }
+    },
+    "split_at": "2026-06-30T06:56:10.864Z",
+    "module_count": 7
+  },
+  "modules": {
+    "数与代数": {
+      "file": "kf_数与代数.json",
+      "patterns": 60,
+      "tested_by": 123,
+      "employs_idea": 84
+    },
+    "典型应用题": {
+      "file": "kf_典型应用题.json",
+      "patterns": 89,
+      "tested_by": 191,
+      "employs_idea": 171
+    },
+    "图形与几何": {
+      "file": "kf_图形与几何.json",
+      "patterns": 120,
+      "tested_by": 246,
+      "employs_idea": 149
+    },
+    "量与计量": {
+      "file": "kf_量与计量.json",
+      "patterns": 15,
+      "tested_by": 37,
+      "employs_idea": 15
+    },
+    "统计与概率": {
+      "file": "kf_统计与概率.json",
+      "patterns": 16,
+      "tested_by": 31,
+      "employs_idea": 16
+    },
+    "位置与方向": {
+      "file": "kf_位置与方向.json",
+      "patterns": 5,
+      "tested_by": 9,
+      "employs_idea": 5
+    },
+    "逻辑与策略": {
+      "file": "kf_逻辑与策略.json",
+      "patterns": 9,
+      "tested_by": 15,
+      "employs_idea": 10
+    }
+  }
+}
