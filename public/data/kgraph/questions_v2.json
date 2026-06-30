@@ -1,0 +1,433 @@
+{
+  "_meta": {
+    "version": "2.0",
+    "updated": "2026-06-29",
+    "changes": [
+      "P0: 接入知识图谱 — 每道题挂载 KP-ID + prereqChain",
+      "P0: 前置追溯 — D1失败时自动推前置知识点诊断",
+      "P1: 自我纠错 — 错误反馈先给提示让人再试一次",
+      "P1: 干扰项诊断化 — 每个错误选项可追溯诊断原因",
+      "P1: 降C维度 — 补充考点复合度降维步骤",
+      "P2: 动机锚点 — 主诊断题前加开场hook"
+    ]
+  },
+
+  "MAIN_QUESTIONS": ["Q-001","Q-002","Q-003"],
+
+  "TOPIC_INFO": {
+    "Q-001": {"name":"排水法求体积","desc":"物体浸没水中，水面上升 → 求物体体积","diff":"easy","diffLabel":"基础","kps":["KP-0388"]},
+    "Q-002": {"name":"排水法逆运算","desc":"已知物体体积和容器底面积 → 求水面上升高度","diff":"medium","diffLabel":"进阶","kps":["KP-0388"]},
+    "Q-003": {"name":"排水法求边长","desc":"排水法求体积 + 体积公式求未知边长（两步综合）","diff":"hard","diffLabel":"挑战","kps":["KP-0388","KP-0389"]}
+  },
+
+  "KNOWLEDGE_GRAPH": {
+    "_description": "图谱节点快照，供诊断引擎在离线环境使用",
+    "KP-0086": {"name":"乘法的意义","grade":"2上","module":"数与代数","topic":"表内乘法","prereqs":[],"downstream":179},
+    "KP-0089": {"name":"6~9的乘法口诀","grade":"2上","module":"数与代数","topic":"表内乘法","prereqs":["KP-0086"],"downstream":93},
+    "KP-0091": {"name":"平均分的意义(等分除)","grade":"2上","module":"数与代数","topic":"表内除法","prereqs":["KP-0086"],"downstream":56},
+    "KP-0158": {"name":"求倍数关系(包含除模型)","grade":"2下","module":"数与代数","topic":"表内除法","prereqs":["KP-0091"],"downstream":28},
+    "KP-0160": {"name":"整十整百数乘一位数","grade":"3上","module":"数与代数","topic":"多位数乘法","prereqs":["KP-0089"],"downstream":53},
+    "KP-0387": {"name":"体积与容积的概念","grade":"5下","module":"图形与几何","topic":"立体图形的认识与测量","prereqs":["KP-0379"],"downstream":18},
+    "KP-0388": {"name":"长方体的体积计算","grade":"5下","module":"图形与几何","topic":"立体图形的认识与测量","prereqs":["KP-0243","KP-0387","KP-0384"],"downstream":5},
+    "KP-0389": {"name":"正方体的体积计算","grade":"5下","module":"图形与几何","topic":"立体图形的认识与测量","prereqs":["KP-0388"],"downstream":0}
+  },
+
+  "QUESTION_BANK": {
+    "Q-001": {
+      "id":"Q-001","title":"排水法求体积","grade":"五下",
+      "kpId": "KP-0388",
+      "pattern":"EP-139 完全浸没求体积(排水法)",
+      "fourDim":{"D1":"TRANSFORM","D2":"D3_FORWARD_MULTI","I":"I2_HIDDEN","C":"C2_INTRA_MODULE"},
+      "knowledge":{"L1":"图形与几何","L2":"立体图形的认识与测量","L3":"体积计算","L4":"长方体的体积计算"},
+      "ideas":["ID-201 形体转化","ID-501 等量代换"],
+      "hook": "你能测量一座假山的体积吗？尺子量不了不规则形状。但有一个聪明的方法——把它放进水里！",
+      "text":"一个长方体鱼缸，底面长 <b>30</b> cm、宽 <b>20</b> cm，将一座假山完全浸没在水中后，水面上升了 <b>2</b> cm。这座假山的体积是多少立方厘米？",
+      "answer":1200,"unit":"cm³",
+      "errorPatterns":{
+        "600":{
+          "type":"部分正确(漏维度)",
+          "hint":"600 是 30×20，也就是鱼缸的底面积。题目问的是假山的体积，还需要用到哪个数据？",
+          "retryPrompt":"再试一次，想想还有什么数据没用上？",
+          "feedback":"<b>600</b> 是底面积（30×20），体积还要乘高度 <b>2</b> cm。",
+          "diagTags":["思路正确 ✓","计算遗漏","D2: 正向多步中的第二步缺失"]
+        },
+        "60":{
+          "type":"数据取错",
+          "hint":"30、20、2 这三个数，你用了 30×2=60。但 30cm 是长，宽是 20cm。重新看看这三个数应该怎么组合？",
+          "retryPrompt":"再试一次，想想鱼缸的底面是什么形状？",
+          "feedback":"<b>60</b> 不对。底面积 = 长×宽 = 30×20 = 600，再乘高 2 = 1200。",
+          "diagTags":["Err: 数据提取错误","I: 情境信息筛选偏差"]
+        },
+        "1800":{
+          "type":"冗余数据干扰",
+          "hint":"1800 这个数是怎么来的？如果用 30×20×3=1800，那个 3 是哪里来的？题目给的是水面上升 2cm。",
+          "retryPrompt":"再看一遍题目，水面上升了几厘米？",
+          "feedback":"<b>1800</b> 不对。升高的水：底面积=30×20，高=<b>2</b> cm。30×20×2=1200。",
+          "diagTags":["Err: 数据混淆","I: 情境信息被干扰"]
+        }
+      },
+      "correctFeedback":"🎉 <b>完全正确！</b>假山体积 = 30 × 20 × 2 = 1200 cm³。你发现了关键：水面升高的部分就是一个长方体！",
+      "correctDiagTags":["排水法原理 ✓","V=S×h ✓","等量代换 ✓","D1: 形体转化 ✓"],
+      "defaultFeedback":"假山浸没后水面升高了 2cm，这部分升高的水就是一个长方体，长30、宽20、高2。想一想：升高的水体积 = ？",
+      "visual":{"type":"tank","labels":{"before":"水面","after":"上升后","delta":"Δh=2cm"}}
+    },
+    "Q-001-I0": {
+      "id":"Q-001-I0","title":"裸题验证","scaffold":"choice",
+      "kpId":"KP-0388",
+      "fourDim":{"D1":"VOLUME_3D","D2":"D1_FORWARD","I":"I0_RAW","C":"C1_SINGLE"},
+      "knowledge":{"L4":"长方体的体积计算"},
+      "text":"长 <b>30</b> cm，宽 <b>20</b> cm，高 <b>2</b> cm，体积是？",
+      "answer":1200,"unit":"cm³",
+      "choices":[
+        {"label":"A. 600 cm³","value":600,"diagTag":"算了底面积，忘了乘高"},
+        {"label":"B. 1200 cm³","value":1200,"diagTag":"正确"},
+        {"label":"C. 52 cm³","value":52,"diagTag":"误把长宽高相加"},
+        {"label":"D. 1800 cm³","value":1800,"diagTag":"正确公式但数字用错"}
+      ]
+    },
+    "Q-001-D1": {
+      "id":"Q-001-D1","title":"最简正向题","scaffold":"choice",
+      "kpId":"KP-0388",
+      "fourDim":{"D1":"VOLUME_3D","D2":"D1_FORWARD","I":"I0_RAW","C":"C1_SINGLE"},
+      "knowledge":{"L4":"长方体的体积计算"},
+      "text":"长 <b>5</b> cm，宽 <b>4</b> cm，高 <b>3</b> cm，体积是？",
+      "answer":60,"unit":"cm³",
+      "choices":[
+        {"label":"A. 12 cm³","value":12,"diagTag":"误算 4×3，漏了长"},
+        {"label":"B. 60 cm³","value":60,"diagTag":"正确"},
+        {"label":"C. 20 cm³","value":20,"diagTag":"误算 5×4，漏了高"},
+        {"label":"D. 120 cm³","value":120,"diagTag":"乘了但用了2倍"}
+      ]
+    },
+    "Q-001-C": {
+      "id":"Q-001-C","title":"排水法巩固(取出)",
+      "kpId":"KP-0388",
+      "fourDim":{"D1":"TRANSFORM","D2":"D3_FORWARD_MULTI","I":"I2_HIDDEN","C":"C2_INTRA_MODULE"},
+      "knowledge":{"L4":"长方体的体积计算"},"ideas":["ID-201 形体转化","ID-501 等量代换"],
+      "text":"鱼缸底面长 <b>30</b> cm、宽 <b>20</b> cm，将石头捞出后水面下降了 <b>0.3</b> cm。石头体积是多少 cm³？",
+      "answer":180,"unit":"cm³",
+      "errorPatterns":{
+        "6":{"type":"只算了底面积","hint":"6 是 30×0.2？重新看看：底面 30×20=600，再乘下降高度 0.3。","retryPrompt":"分两步：①底面积 ②×下降高度"}
+      },
+      "correctFeedback":"🎉 <b>完美！</b>30 × 20 × 0.3 = <b>180 cm³</b>。不管是上升还是下降，原理一样——变化的水体积 = 物体体积。",
+      "wrongHint":"下降的水体积 = 石头体积。30 × 20 × 0.3 = <b>180 cm³</b>"
+    },
+    "Q-001-UP": {
+      "id":"Q-001-UP","title":"升维·溢出法",
+      "kpId":"KP-0388",
+      "fourDim":{"D1":"TRANSFORM","D2":"D3_FORWARD_MULTI","I":"I3_DYNAMIC","C":"C2_INTRA_MODULE"},
+      "knowledge":{"L4":"长方体的体积计算"},"ideas":["ID-201 形体转化","ID-501 等量代换"],
+      "text":"长方体容器长 <b>20</b> cm，宽 <b>15</b> cm，高 <b>25</b> cm，装满水。放入铁块后溢出 <b>900</b> cm³ 水。铁块体积？",
+      "answer":900,"unit":"cm³",
+      "errorPatterns":{
+        "7500":{"type":"误用容器体积","hint":"7500 是 20×15×25=容器的总容积。但题目问的是铁块体积，不是容器的体积。","retryPrompt":"装满水的容器放入铁块，溢出的水量代表什么？"}
+      },
+      "correctFeedback":"🎉🎉 <b>太强了！</b>装满水时溢出量 = 铁块体积 = <b>900 cm³</b>。容器的高25cm是干扰信息！",
+      "wrongHint":"容器<b>装满</b>水！溢出的水 = 铁块体积 = <b>900 cm³</b>（容器尺寸 25cm 是干扰）"
+    },
+
+    "Q-002": {
+      "id":"Q-002","title":"排水法逆运算","grade":"五下",
+      "kpId":"KP-0388",
+      "pattern":"EP-140 浸没后求水面变化高度",
+      "fourDim":{"D1":"TRANSFORM","D2":"D2_REVERSE","I":"I2_HIDDEN","C":"C2_INTRA_MODULE"},
+      "knowledge":{"L1":"图形与几何","L2":"立体图形的认识与测量","L3":"体积计算","L4":"长方体的体积计算"},
+      "ideas":["ID-201 形体转化","ID-501 等量代换"],
+      "hook": "刚才学会了用排水法求体积。现在反过来——如果已知石头体积，你能算出水面会升高多少吗？h = V ÷ S 是关键！",
+      "text":"石头体积 <b>180</b> cm³，完全浸没在底面长 <b>15</b> cm、宽 <b>10</b> cm 的鱼缸中，水面上升多少厘米？",
+      "answer":1.2,"unit":"cm",
+      "errorPatterns":{
+        "150":{
+          "type":"只算了底面积",
+          "hint":"150 是 15×10=底面积。题目问的是水面<b>上升多少厘米</b>，也就是高度。已知体积和底面积，怎么求高？",
+          "retryPrompt":"想想公式：体积 = 底面积 × 高，那高 = ？",
+          "feedback":"<b>150</b> 是底面积，题目问的是<b>高度</b>。h = V ÷ S = 180 ÷ 150 = 1.2 cm",
+          "diagTags":["底面积正确 ✓","D2: 逆运算未完成","逆向思维缺口"]
+        },
+        "27000":{
+          "type":"乘法方向错误",
+          "hint":"180×150=27000。但你想想：体积180的东西放进底面积150的容器，水面会升高 27000 厘米（270米）吗？物理上合理吗？",
+          "retryPrompt":"需要用<b>除法</b>不是乘法。提示：已知总体积和底面积，求高。",
+          "feedback":"需要<b>除法</b>：h = 180 ÷ 150 = 1.2 cm。想象把 180 cm³ 的石头铺在 150 cm² 的底面上，厚度就是 180÷150=1.2。",
+          "diagTags":["Err: 运算方向反","D2: 正向惯性→逆向困难"]
+        },
+        "12":{
+          "type":"小数点错误",
+          "hint":"12 很接近！180÷150 的商应该比 1 大一点点（因为 180 > 150），不可能是 12。是不是小数点位置放错了？",
+          "retryPrompt":"180÷150 = 1.？再试一次。",
+          "feedback":"接近了！180÷150 = <b>1.2</b> 不是 12。",
+          "diagTags":["思路正确 ✓","计算误差","小数点敏感度不足"]
+        }
+      },
+      "correctFeedback":"🎉 <b>正确！</b>h = V ÷ S = 180 ÷ 150 = <b>1.2 cm</b>。正运算 V=S×h 变成逆运算 h=V÷S，关键是想清楚<b>已知什么、求什么</b>。",
+      "correctDiagTags":["V=S×h 逆运算 ✓","h=V÷S ✓","D2: 逆向思维 ✓"],
+      "defaultFeedback":"排水法逆运算：已知体积和底面积，h = V ÷ S。180 ÷ (15×10) = 180 ÷ 150 = 1.2 cm",
+      "visual":{"type":"tank","labels":{"before":"水面","after":"上升后","delta":"Δh=?"}}
+    },
+    "Q-002-I0": {
+      "id":"Q-002-I0","title":"裸题·除法求高","scaffold":"choice",
+      "kpId":"KP-0388",
+      "fourDim":{"D1":"VOLUME_3D","D2":"D2_REVERSE","I":"I0_RAW","C":"C1_SINGLE"},
+      "knowledge":{"L4":"长方体的体积计算"},
+      "text":"体积 <b>180</b> cm³，底面积 <b>150</b> cm²，高是？",
+      "answer":1.2,"unit":"cm",
+      "choices":[
+        {"label":"A. 150 cm","value":150,"diagTag":"混淆：把底面积当成了高"},
+        {"label":"B. 1.2 cm","value":1.2,"diagTag":"正确"},
+        {"label":"C. 330 cm³","value":330,"diagTag":"误用加法：180+150"},
+        {"label":"D. 27000 cm","value":27000,"diagTag":"误用乘法：180×150"}
+      ]
+    },
+    "Q-002-D1": {
+      "id":"Q-002-D1","title":"最简除法题","scaffold":"choice",
+      "kpId":"KP-0388",
+      "fourDim":{"D1":"VOLUME_3D","D2":"D1_FORWARD","I":"I0_RAW","C":"C1_SINGLE"},
+      "knowledge":{"L4":"长方体的体积计算"},
+      "text":"体积 <b>60</b> cm³，底面积 <b>20</b> cm²，高是？",
+      "answer":3,"unit":"cm",
+      "choices":[
+        {"label":"A. 40 cm","value":40,"diagTag":"误用减法：60-20"},
+        {"label":"B. 3 cm","value":3,"diagTag":"正确"},
+        {"label":"C. 80 cm³","value":80,"diagTag":"误用加法：60+20"},
+        {"label":"D. 1200 cm","value":1200,"diagTag":"误用乘法：60×20"}
+      ]
+    },
+    "Q-002-C": {
+      "id":"Q-002-C","title":"巩固·取出求下降",
+      "kpId":"KP-0388",
+      "fourDim":{"D1":"TRANSFORM","D2":"D2_REVERSE","I":"I2_HIDDEN","C":"C2_INTRA_MODULE"},
+      "knowledge":{"L4":"长方体的体积计算"},"ideas":["ID-501 等量代换"],
+      "text":"鱼缸底面 15×10 cm，装饰物 5×3×2 cm。取出后水面下降多少？",
+      "answer":0.2,"unit":"cm",
+      "errorPatterns":{
+        "30":{"type":"只算了体积","hint":"30 是装饰物的体积（5×3×2=30）。题目问的是水面下降多少厘米，需要 ÷ 底面积。","retryPrompt":"h = V ÷ S。V=30, S=15×10=150, h=？"}
+      },
+      "correctFeedback":"🎉 装饰物体积 30，底面积 150，下降 30÷150 = <b>0.2 cm</b>！两步操作一气呵成。",
+      "wrongHint":"装饰物 5×3×2=30 cm³，底面积 150 cm²，下降 30÷150 = <b>0.2 cm</b>"
+    },
+    "Q-002-UP": {
+      "id":"Q-002-UP","title":"升维·不同容器对比",
+      "kpId":"KP-0388",
+      "fourDim":{"D1":"TRANSFORM","D2":"D3_FORWARD_MULTI","I":"I3_DYNAMIC","C":"C3_CROSS_MODULE"},
+      "knowledge":{"L4":"长方体的体积计算"},"ideas":["ID-501 等量代换"],
+      "text":"体积 <b>120</b> cm³ 的小球从底面积 200 cm² 的 A 缸取出，放入底面积 <b>150</b> cm² 的 B 缸。B 水面上升？",
+      "answer":0.8,"unit":"cm",
+      "errorPatterns":{
+        "200":{"type":"用了A的底面积","hint":"A 缸底面积 200 cm² 是干扰信息！小球是从 A 取出的，但问的是放入 B 后水面上升多少。只用 B 的底面积 150。","retryPrompt":"h = V ÷ S_B = 120 ÷ 150 = ？"}
+      },
+      "correctFeedback":"🎉🎉 120÷150 = <b>0.8 cm</b>！底面积越大水面变化越小——这就是为什么同样一块石头在大缸里水位变化不明显。A 缸的数据是<b>干扰</b>！",
+      "wrongHint":"小球体积 120 cm³，放入 B：120÷150 = <b>0.8 cm</b>（A 底面积是干扰！）"
+    },
+
+    "Q-003": {
+      "id":"Q-003","title":"排水法求边长","grade":"五下",
+      "kpId":"KP-0388",
+      "pattern":"EP-142 排水法+体积公式联合求边长",
+      "fourDim":{"D1":"TRANSFORM","D2":"D3_FORWARD_MULTI","I":"I2_HIDDEN","C":"C3_CROSS_MODULE"},
+      "knowledge":{"L1":"图形与几何","L2":"立体图形的认识与测量","L3":"体积计算","L4":"长方体的体积计算"},
+      "ideas":["ID-201 形体转化","ID-501 等量代换","ID-302 逆运算"],
+      "hook": "终极挑战！这道题需要<b>两步联合推理</b>：①用排水法求出铁块体积 ②用体积公式反推边长。你能把两步串起来吗？",
+      "text":"铁块底面积 <b>400</b> cm²，高未知。浸没在底面 <b>60</b>×<b>120</b> cm 容器中，水面上升 <b>2</b> cm。铁块高多少？",
+      "answer":36,"unit":"cm",
+      "errorPatterns":{
+        "14400":{
+          "type":"只做了一步(排水法求体积)",
+          "hint":"14400 是正确的——铁块的体积确实是 60×120×2 = 14400 cm³。但现在题目问的是铁块的<b>高</b>，不是体积。还需要一步：体积 ÷ 铁块底面积。",
+          "retryPrompt":"体积 = 底面积 × 高 → 高 = 体积 ÷ 底面积 = 14400 ÷ 400 = ？",
+          "feedback":"<b>14400</b> 是铁块<b>体积</b>，题目问<b>高</b>。还需 ÷ 底面积400！14400 ÷ 400 = 36 cm",
+          "diagTags":["排水法 ✓","C: 第二步未完成","跨模块复合中的串联断裂"]
+        },
+        "7200":{
+          "type":"混淆容器与铁块",
+          "hint":"7200 是容器的底面积（60×120）。题目问的是铁块的高，需要用铁块的底面积（400 cm²），不是容器的。",
+          "retryPrompt":"分两步想：①铁块体积 = 容器底面积 × 上升高度 = ？②铁块高 = 铁块体积 ÷ 铁块底面积 = ？",
+          "feedback":"<b>7200</b> 是容器底面积。需两步：①求铁块体积 = 7200×2=14400 ②铁块高 = 14400÷400=36 cm",
+          "diagTags":["Err: 混淆容器/铁块","I: 多对象情境中信息归属错误"]
+        },
+        "200":{
+          "type":"除法对象错误",
+          "hint":"题目中出现了两个底面积：容器底面积（60×120=7200）和铁块底面积（400）。你除的是？",
+          "retryPrompt":"铁块高 = 铁块体积 ÷ <b>铁块</b>底面积。14400 ÷ 400 = ？",
+          "feedback":"要除以<b>铁块底面积</b>400，不是容器尺寸。14400÷400=36",
+          "diagTags":["Err: 混淆两个底面积","C: 跨模块中的对象区分困难"]
+        }
+      },
+      "correctFeedback":"🎉 <b>完美！</b>①排水法求铁块体积：60×120×2=14400 ②铁块高 = 14400÷400=<b>36 cm</b>。两步串联，无懈可击！",
+      "correctDiagTags":["排水法 ✓","体积逆运算 ✓","两步推理 ✓","C: 跨模块复合 ✓"],
+      "defaultFeedback":"两步：①排水法求体积 = 60×120×2 = 14400 ②铁块高 = 14400 ÷ 400 = 36 cm。关键：容器底面积 ≠ 铁块底面积！",
+      "visual":{"type":"twoStep","steps":[{"label":"Step 1","desc":"排水法求铁块体积"},{"label":"Step 2","desc":"体积÷底面积=高"}]}
+    },
+    "Q-003-I0": {
+      "id":"Q-003-I0","title":"裸题·两步计算","scaffold":"choice",
+      "kpId":"KP-0388",
+      "fourDim":{"D1":"VOLUME_3D","D2":"D3_FORWARD_MULTI","I":"I0_RAW","C":"C2_INTRA_MODULE"},
+      "knowledge":{"L4":"长方体的体积计算"},
+      "text":"体积 <b>14400</b> cm³，底面积 <b>400</b> cm²，高是？",
+      "answer":36,"unit":"cm",
+      "choices":[
+        {"label":"A. 36 cm","value":36,"diagTag":"正确"},
+        {"label":"B. 360 cm","value":360,"diagTag":"小数点错误：多了一个0"},
+        {"label":"C. 14000 cm","value":14000,"diagTag":"误用减法：14400-400"},
+        {"label":"D. 3600 cm","value":3600,"diagTag":"误算：14400÷4而非÷400"}
+      ]
+    },
+    "Q-003-D1": {
+      "id":"Q-003-D1","title":"最简求高题","scaffold":"choice",
+      "kpId":"KP-0388",
+      "fourDim":{"D1":"VOLUME_3D","D2":"D1_FORWARD","I":"I0_RAW","C":"C1_SINGLE"},
+      "knowledge":{"L4":"长方体的体积计算"},
+      "text":"体积 <b>120</b> cm³，底面积 <b>40</b> cm²，高是？",
+      "answer":3,"unit":"cm",
+      "choices":[
+        {"label":"A. 80 cm","value":80,"diagTag":"误用减法：120-40"},
+        {"label":"B. 3 cm","value":3,"diagTag":"正确"},
+        {"label":"C. 4800 cm³","value":4800,"diagTag":"误用乘法：120×40"},
+        {"label":"D. 160 cm","value":160,"diagTag":"误用加法：120+40"}
+      ]
+    },
+    "Q-003-C": {
+      "id":"Q-003-C","title":"巩固·排水法求高",
+      "kpId":"KP-0388",
+      "fourDim":{"D1":"TRANSFORM","D2":"D3_FORWARD_MULTI","I":"I2_HIDDEN","C":"C3_CROSS_MODULE"},
+      "knowledge":{"L4":"长方体的体积计算"},"ideas":["ID-501 等量代换"],
+      "text":"铁块底面积 <b>200</b> cm²，浸没在底面积 500 cm² 容器中，水面上升 <b>3</b> cm。铁块高？",
+      "answer":7.5,"unit":"cm",
+      "errorPatterns":{
+        "1500":{"type":"只做了第一步","hint":"1500 是铁块体积（500×3）。还要 ÷ 铁块底面积 200。","retryPrompt":"高 = 体积 ÷ 底面积 = 1500 ÷ 200 = ？"}
+      },
+      "correctFeedback":"🎉 500×3=1500，1500÷200=<b>7.5 cm</b>！两步法越来越熟练了。",
+      "wrongHint":"①排水法：500×3=1500 ②铁块高=1500÷200=<b>7.5 cm</b>"
+    },
+    "Q-003-UP": {
+      "id":"Q-003-UP","title":"升维·正方体求棱长",
+      "kpId":"KP-0389",
+      "fourDim":{"D1":"TRANSFORM","D2":"D4_REVERSE_MULTI","I":"I3_DYNAMIC","C":"C3_CROSS_MODULE"},
+      "knowledge":{"L4":"正方体的体积计算"},"ideas":["ID-501 等量代换"],
+      "text":"正方体铁块浸没在 25×20 cm 容器中，水面上升 <b>2</b> cm。棱长是？",
+      "answer":10,"unit":"cm",
+      "errorPatterns":{
+        "1000":{"type":"只求了体积","hint":"1000 是铁块体积。但铁块是<b>正方体</b>——体积=棱长³。棱长是多少？","retryPrompt":"什么数的立方 = 1000？"},
+        "125":{"type":"混淆","hint":"125 是 25×20÷4？思路反了。先排水法：体积=25×20×2=1000，再开立方。"}
+      },
+      "correctFeedback":"🎉🎉 25×20×2=1000，10³=1000，棱长=<b>10 cm</b>！从排水法到正方体体积到开立方，三连击通关！",
+      "wrongHint":"①排水法：25×20×2=1000 cm³ ②正方体体积=棱长³=1000 → 棱长=<b>10 cm</b>（10×10×10=1000）"
+    },
+
+    "PREREQ-001": {
+      "id":"PREREQ-001","title":"前置诊断·乘法的意义","scaffold":"choice",
+      "kpId":"KP-0086","grade":"二上",
+      "fourDim":{"D1":"EQUAL_GROUP","D2":"D1_FORWARD_SINGLE","I":"I0_RAW","C":"C1_SINGLE"},
+      "knowledge":{"L1":"数与代数","L2":"表内乘法","L3":"乘法的意义","L4":"乘法的意义"},
+      "text":"5 × 3 是什么意思？",
+      "answer":"5个3相加","unit":"",
+      "choices":[
+        {"label":"A. 5+3","value":"5+3","diagTag":"混淆乘法和加法"},
+        {"label":"B. 5个3相加","value":"5个3相加","diagTag":"正确"},
+        {"label":"C. 5个3相乘","value":"5个3相乘","diagTag":"混淆乘法和乘方"},
+        {"label":"D. 5×5×5","value":"5×5×5","diagTag":"混淆乘数和指数"}
+      ],
+      "correctFeedback":"对！5×3 就是 5 个 3 连加：3+3+3+3+3。乘法是加法的简便运算 ✨",
+      "wrongHint":"想一想：5×3 是 5 个 3 <b>相加</b>，不是相乘。3+3+3+3+3 = 15"
+    },
+    "PREREQ-002": {
+      "id":"PREREQ-002","title":"前置诊断·包含除模型","scaffold":"choice",
+      "kpId":"KP-0158","grade":"二下",
+      "fourDim":{"D1":"EQUAL_GROUP","D2":"D2_REVERSE_SINGLE","I":"I0_RAW","C":"C1_SINGLE"},
+      "knowledge":{"L1":"数与代数","L2":"表内除法","L3":"平均分的意义","L4":"包含除模型"},
+      "text":"12 个苹果，每人分 4 个，能分给几个人？",
+      "answer":3,"unit":"人",
+      "choices":[
+        {"label":"A. 3 人","value":3,"diagTag":"正确"},
+        {"label":"B. 48 人","value":48,"diagTag":"误用乘法：12×4"},
+        {"label":"C. 8 人","value":8,"diagTag":"误用减法：12-4"},
+        {"label":"D. 16 人","value":16,"diagTag":"误用加法：12+4"}
+      ],
+      "correctFeedback":"对！12÷4=3 人。这就是「包含除」——12 里面包含几个 4？",
+      "wrongHint":"12÷4=3。想象把 12 个苹果每 4 个放一堆，能放 3 堆 = 3 个人。"
+    }
+  },
+
+  "DIAGNOSIS_FLOWS": {
+    "Q-001": {
+      "mainId":"Q-001",
+      "kpId":"KP-0388",
+      "prereqChain":["KP-0086","KP-0089","KP-0160","KP-0243","KP-0387","KP-0388"],
+      "dimDownChain":[
+        {"id":"Q-001-I0","label":"🔬 降维·裸题","dimDesc":"剥离情境 I→I0","aiPrompt":"剥离了情境，纯计算~选一个吧","onFail":"继续，试试更简单的数字"},
+        {"id":"Q-001-D1","label":"🔬 降维·基础","dimDesc":"降维 D2→D1，简化数字","aiPrompt":"最简单的体积题~","onFail":"PREREQ_TRACE"}
+      ],
+      "prereqFallback": {
+        "trigger": "D1_FAIL",
+        "message": "连最简单的体积计算都卡住了，说明问题不在排水法本身。我们往前追一步——先看看乘法的基本概念有没有过关。",
+        "questionId": "PREREQ-001",
+        "onPrereqPass": "基础乘法概念 OK！那问题出在对'体积'的理解上。试试这道→",
+        "onPrereqFail": "找到了！乘法的意义还没建立。这就是为什么体积计算会卡住的<b>真正原因</b>。建议先回到二年级乘法练习。"
+      },
+      "consolidateId":"Q-001-C","consolidatePrompt":"这次把石头<b>捞出来</b>，水面下降了。原理一样！",
+      "levelUpId":"Q-001-UP","levelUpPrompt":"容器<b>装满水</b>！放入铁块后水溢出。溢出的水=？",
+      "visualGuideText":"物体沉入水中，水面升高。<b>升高的水体积 = 物体体积</b>！",
+      "i0PassExplain":"公式没问题！原题：30 × 20 × <b>2</b> = <b>1200 cm³</b>",
+      "d1PassExplain":"基础OK！口诀：<b>物体体积 = 底面积 × 上升高度</b>！",
+      "dagUnlock":["EP-140 求水面变化高度","EP-142 排水法+求边长"],
+      "boards":{
+        "main":{"title":"排水法求体积","steps":["<span class=\"step-num\">1</span>关键数据：长 <b>30</b>，宽 <b>20</b>，上升 <b>2</b> cm","<span class=\"step-num\">2</span>原理：<span class=\"step-formula\">升高的水体积 = 物体体积</span>","<span class=\"step-num\">3</span><span class=\"step-formula\">V = 30 × 20 × 2 = 1200 cm³</span>"],"conclusion":"物体体积 = 底面积 × 上升高度 ✨"},
+        "Q-001-I0":{"title":"长方体体积","steps":["<span class=\"step-num\">1</span><span class=\"step-formula\">V = 30 × 20 × 2</span>","<span class=\"step-num\">2</span>30×20=600，600×2=<span class=\"step-result\">1200</span>"],"conclusion":"V = 1200 cm³"},
+        "Q-001-D1":{"title":"最简体积","steps":["<span class=\"step-num\">1</span><span class=\"step-formula\">V = 5 × 4 × 3 = 60</span>"],"conclusion":"V = 60 cm³"}
+      }
+    },
+    "Q-002": {
+      "mainId":"Q-002",
+      "kpId":"KP-0388",
+      "prereqChain":["KP-0091","KP-0158","KP-0388"],
+      "dimDownChain":[
+        {"id":"Q-002-I0","label":"🔬 降维·裸题","dimDesc":"剥离情境 I→I0","aiPrompt":"体积÷底面积=高，选一下~","onFail":"继续，试试正向的基础题"},
+        {"id":"Q-002-D1","label":"🔬 降维·基础","dimDesc":"降维 D2→D1，逆向转正向","aiPrompt":"先确认正向运算没问题~","onFail":"PREREQ_TRACE"}
+      ],
+      "prereqFallback": {
+        "trigger": "D1_FAIL",
+        "message": "正向除法基础题也卡住了。这不是排水法的问题——你可能对'除法'本身的理解有缺口。",
+        "questionId": "PREREQ-002",
+        "onPrereqPass": "包含除的概念没问题！那问题在于逆向思维——从 V=S×h 变成 h=V÷S，需要思维转换。回到原题试试。",
+        "onPrereqFail": "找到了！'包含除'的概念还没建立——这就是为什么 V÷S 求高会卡住的<b>真正原因</b>。建议先回到二年级除法练习。"
+      },
+      "consolidateId":"Q-002-C","consolidatePrompt":"两步：先算体积再÷底面积。水面下降多少？",
+      "levelUpId":"Q-002-UP","levelUpPrompt":"两个鱼缸底面积不同！B水面上升？",
+      "visualGuideText":"h = V ÷ S，V=S×h 的逆运算 ✨",
+      "i0PassExplain":"公式没问题！180÷150 = <b>1.2 cm</b>",
+      "d1PassExplain":"V÷S=h 会了！180÷150 = <b>1.2 cm</b>",
+      "dagUnlock":["EP-142 排水法+求边长"],
+      "boards":{
+        "main":{"title":"排水法逆运算 h=V÷S","steps":["<span class=\"step-num\">1</span>石头体积 <b>180</b>，底面 15×10=<b>150</b>","<span class=\"step-num\">2</span><span class=\"step-formula\">h = V ÷ S = 180 ÷ 150 = 1.2</span>"],"conclusion":"h = V ÷ S ✨"},
+        "Q-002-I0":{"title":"h=V÷S","steps":["<span class=\"step-num\">1</span><span class=\"step-formula\">h = 180 ÷ 150 = 1.2</span>"],"conclusion":"h = 1.2 cm"},
+        "Q-002-D1":{"title":"最简除法","steps":["<span class=\"step-num\">1</span><span class=\"step-formula\">h = 60 ÷ 20 = 3</span>"],"conclusion":"h = 3 cm"}
+      }
+    },
+    "Q-003": {
+      "mainId":"Q-003",
+      "kpId":"KP-0388",
+      "prereqChain":["KP-0388","KP-0389"],
+      "dimDownChain":[
+        {"id":"Q-003-I0","label":"🔬 降维·裸题","dimDesc":"剥离排水法情境","aiPrompt":"纯计算：体积÷底面积=高，选一下~","onFail":"继续，降考点复合度"},
+        {"id":"Q-003-D1","label":"🔬 降维·基础","dimDesc":"降维 D2→D1 + C→C1","aiPrompt":"最简单的除法求高~","onFail":"PREREQ_TRACE"}
+      ],
+      "prereqFallback": {
+        "trigger": "D1_FAIL",
+        "message": "基础除法求高也卡住了。这道题虽然看起来是两步综合，但每一步单独拆开应该都能过。",
+        "questionId": "PREREQ-002",
+        "onPrereqPass": "除法基础OK。那原题卡在哪一步？①排水法求体积 还是 ②体积÷底面积=高？试试回到原题，这次我帮你分步。",
+        "onPrereqFail": "除法的包含除模型还没建立。这就是为什么两步推理会断在第二步的<b>真正原因</b>。"
+      },
+      "consolidateId":"Q-003-C","consolidatePrompt":"两步法：排水法求体积→求铁块高。再练一次！",
+      "levelUpId":"Q-003-UP","levelUpPrompt":"铁块换<b>正方体</b>，求棱长！多一步开立方。",
+      "visualGuideText":"两步：①排水法求体积 ②÷底面积=高。分清<b>容器</b>和<b>铁块</b>！",
+      "i0PassExplain":"V÷S=h 没问题！①60×120×2=14400 ②14400÷400=<b>36</b>",
+      "d1PassExplain":"基础OK！①14400 ②÷400=<b>36 cm</b>",
+      "dagUnlock":["正方体排水法求棱长","圆柱排水法求高"],
+      "boards":{
+        "main":{"title":"两步法：排水法+求边长","steps":["<span class=\"step-num\">1</span>排水法求体积：<span class=\"step-formula\">V = 60×120×2 = 14400 cm³</span>","<span class=\"step-num\">2</span>⚠ 容器底面积(7200) ≠ 铁块底面积(400)","<span class=\"step-num\">3</span>铁块高：<span class=\"step-formula\">h = 14400 ÷ 400 = 36 cm</span>"],"conclusion":"①排水法求体积 ②÷铁块底面积=高 ✨"},
+        "Q-003-I0":{"title":"求高","steps":["<span class=\"step-num\">1</span><span class=\"step-formula\">h = 14400 ÷ 400 = 36 cm</span>"],"conclusion":"h = 36 cm"},
+        "Q-003-D1":{"title":"最简除法","steps":["<span class=\"step-num\">1</span><span class=\"step-formula\">h = 120 ÷ 40 = 3 cm</span>"],"conclusion":"h = 3 cm"}
+      }
+    }
+  }
+}

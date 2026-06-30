@@ -1,0 +1,621 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "description": "小学数学思想字典机器可读版 — 教学参考标签，非诊断引擎依赖",
+    "source": "02_知识数据/2-小学数学思想字典.md",
+    "total_ideas": 24,
+    "total_categories": 11,
+    "compiled_at": "2026-06-29T06:16:18.255Z",
+    "usage": "用于课程设计、视频讲解、错题引导文案。仅通过 employs_idea 边连接考法图谱，绝不直接连接知识图谱。"
+  },
+  "ideas": [
+    {
+      "idea_id": "ID-101",
+      "name": "量率对应",
+      "category": "对应思想",
+      "category_en": "Correspondence Principle",
+      "description": "具体数量与抽象分率/百分率的对应",
+      "core_feature": "寻找两个不同维度的量之间的绑定关系",
+      "traversal": [
+        {
+          "topic": "分数应用题",
+          "grade": 6,
+          "type": "课内"
+        },
+        {
+          "topic": "折扣/利润问题",
+          "grade": 6,
+          "type": "课内"
+        },
+        {
+          "topic": "浓度问题",
+          "grade": 6,
+          "type": "培优"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-102",
+      "name": "点段对应",
+      "category": "对应思想",
+      "category_en": "Correspondence Principle",
+      "description": "离散的点与连续的段之间的对应",
+      "core_feature": "寻找两个不同维度的量之间的绑定关系",
+      "traversal": [
+        {
+          "topic": "敲钟问题",
+          "grade": 2,
+          "type": "课内"
+        },
+        {
+          "topic": "爬楼梯/锯木头",
+          "grade": 3,
+          "type": "课内"
+        },
+        {
+          "topic": "植树问题",
+          "grade": 4,
+          "type": "课内"
+        },
+        {
+          "topic": "剪绳子问题",
+          "grade": 5,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-103",
+      "name": "单总对应",
+      "category": "对应思想",
+      "category_en": "Correspondence Principle",
+      "description": "单一量与总量的对应",
+      "core_feature": "寻找两个不同维度的量之间的绑定关系",
+      "traversal": [
+        {
+          "topic": "归一/归总问题",
+          "grade": 3,
+          "type": "课内"
+        },
+        {
+          "topic": "基础工程问题",
+          "grade": 5,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-104",
+      "name": "假设对应",
+      "category": "对应思想",
+      "category_en": "Correspondence Principle",
+      "description": "假设状态下的总量与实际总量的差异对应",
+      "core_feature": "寻找两个不同维度的量之间的绑定关系",
+      "traversal": [
+        {
+          "topic": "鸡兔同笼假设法",
+          "grade": 4,
+          "type": "课内"
+        },
+        {
+          "topic": "知识竞赛计分",
+          "grade": 5,
+          "type": "课内"
+        },
+        {
+          "topic": "运玻璃瓶碎裂赔偿",
+          "grade": 6,
+          "type": "培优"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-201",
+      "name": "形体转化",
+      "category": "转化思想",
+      "category_en": "Transformation Principle",
+      "description": "图形的割补、平移、旋转，立体图形的等积变形",
+      "core_feature": "化未知为已知，化复杂为简单，化曲为直",
+      "traversal": [
+        {
+          "topic": "割补求阴影面积",
+          "grade": 5,
+          "type": "课内"
+        },
+        {
+          "topic": "捏橡皮泥/水面上升",
+          "grade": 6,
+          "type": "课内"
+        },
+        {
+          "topic": "熔铸问题",
+          "grade": 6,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-202",
+      "name": "算理转化",
+      "category": "转化思想",
+      "category_en": "Transformation Principle",
+      "description": "将新运算转化为已学运算",
+      "core_feature": "化未知为已知，化复杂为简单，化曲为直",
+      "traversal": [
+        {
+          "topic": "异分母转同分母",
+          "grade": 5,
+          "type": "课内"
+        },
+        {
+          "topic": "除以分数转为乘倒数",
+          "grade": 6,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-203",
+      "name": "模型转化",
+      "category": "转化思想",
+      "category_en": "Transformation Principle",
+      "description": "将复杂情境转化为标准数学模型",
+      "core_feature": "化未知为已知，化复杂为简单，化曲为直",
+      "traversal": [
+        {
+          "topic": "火车过桥→行程",
+          "grade": 5,
+          "type": "课内"
+        },
+        {
+          "topic": "两人合作→分数加减",
+          "grade": 6,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-301",
+      "name": "集合容斥",
+      "category": "容斥与重叠思想",
+      "category_en": "Inclusion-Exclusion Principle",
+      "description": "两个或三个集合的交集与并集",
+      "core_feature": "处理部分相加之和与总数之间的重复计算问题",
+      "traversal": [
+        {
+          "topic": "喜欢A和喜欢B的人数",
+          "grade": 3,
+          "type": "课内"
+        },
+        {
+          "topic": "既是2又是3的倍数",
+          "grade": 5,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-302",
+      "name": "线性重叠",
+      "category": "容斥与重叠思想",
+      "category_en": "Inclusion-Exclusion Principle",
+      "description": "一维空间上的线段重叠",
+      "core_feature": "处理部分相加之和与总数之间的重复计算问题",
+      "traversal": [
+        {
+          "topic": "排队问题",
+          "grade": 1,
+          "type": "课内"
+        },
+        {
+          "topic": "两块木板钉在一起",
+          "grade": 3,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-303",
+      "name": "阵列重叠",
+      "category": "容斥与重叠思想",
+      "category_en": "Inclusion-Exclusion Principle",
+      "description": "二维空间上的交叉点重复计算",
+      "core_feature": "处理部分相加之和与总数之间的重复计算问题",
+      "traversal": [
+        {
+          "topic": "数阵图",
+          "grade": 3,
+          "type": "课内"
+        },
+        {
+          "topic": "方阵问题",
+          "grade": 4,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-401",
+      "name": "图解算理",
+      "category": "数形结合思想",
+      "category_en": "Number-Shape Integration",
+      "description": "用图形直观解释抽象运算",
+      "core_feature": "以形助数，以数解形",
+      "traversal": [
+        {
+          "topic": "一图两式",
+          "grade": 1,
+          "type": "课内"
+        },
+        {
+          "topic": "面积模型解释乘法分配律",
+          "grade": 4,
+          "type": "课内"
+        },
+        {
+          "topic": "分数乘法画图",
+          "grade": 6,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-402",
+      "name": "线段图模",
+      "category": "数形结合思想",
+      "category_en": "Number-Shape Integration",
+      "description": "用线段图表征复杂的数量关系",
+      "core_feature": "以形助数，以数解形",
+      "traversal": [
+        {
+          "topic": "和差倍问题",
+          "grade": 4,
+          "type": "课内"
+        },
+        {
+          "topic": "复杂行程问题",
+          "grade": 5,
+          "type": "课内"
+        },
+        {
+          "topic": "分数应用题",
+          "grade": 6,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-403",
+      "name": "数阵规律",
+      "category": "数形结合思想",
+      "category_en": "Number-Shape Integration",
+      "description": "数字排列与几何图形的结合",
+      "core_feature": "以形助数，以数解形",
+      "traversal": [
+        {
+          "topic": "图形点阵规律",
+          "grade": 2,
+          "type": "课内"
+        },
+        {
+          "topic": "正方形数/三角形数",
+          "grade": 5,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-501",
+      "name": "等量代换",
+      "category": "代换与方程思想",
+      "category_en": "Substitution & Equation",
+      "description": "基于等式的直接替换",
+      "core_feature": "利用相等关系进行替换，或设立未知数逆向求解",
+      "traversal": [
+        {
+          "topic": "天平换算",
+          "grade": 2,
+          "type": "课内"
+        },
+        {
+          "topic": "苹果换梨",
+          "grade": 3,
+          "type": "课内"
+        },
+        {
+          "topic": "鸡兔同笼代换法",
+          "grade": 4,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-502",
+      "name": "设元列式",
+      "category": "代换与方程思想",
+      "category_en": "Substitution & Equation",
+      "description": "寻找等量关系列出方程",
+      "core_feature": "利用相等关系进行替换，或设立未知数逆向求解",
+      "traversal": [
+        {
+          "topic": "逆向文字题",
+          "grade": 4,
+          "type": "课内"
+        },
+        {
+          "topic": "复杂相遇追及列方程",
+          "grade": 5,
+          "type": "课内"
+        },
+        {
+          "topic": "浓度配比方程",
+          "grade": 6,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-601",
+      "name": "无限细分",
+      "category": "极限与逼近思想",
+      "category_en": "Limit & Approximation",
+      "description": "化曲为直的面积/体积推导",
+      "core_feature": "无限细分，或寻找边界值",
+      "traversal": [
+        {
+          "topic": "圆面积推导",
+          "grade": 6,
+          "type": "课内"
+        },
+        {
+          "topic": "圆柱体积推导",
+          "grade": 6,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-602",
+      "name": "极值与估算",
+      "category": "极限与逼近思想",
+      "category_en": "Limit & Approximation",
+      "description": "寻找最大/最小可能值，或现实约束下的取舍",
+      "core_feature": "无限细分，或寻找边界值",
+      "traversal": [
+        {
+          "topic": "进一法/去尾法",
+          "grade": 3,
+          "type": "课内"
+        },
+        {
+          "topic": "周长一定求最大面积",
+          "grade": 3,
+          "type": "课内"
+        },
+        {
+          "topic": "乘积最大组合",
+          "grade": 4,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-701",
+      "name": "步骤倒推",
+      "category": "逆向与倒推思想",
+      "category_en": "Working Backwards",
+      "description": "按事件发生的相反顺序逆推",
+      "core_feature": "从结果出发，反向推导初始状态",
+      "traversal": [
+        {
+          "topic": "基础还原问题",
+          "grade": 3,
+          "type": "课内"
+        },
+        {
+          "topic": "猴子分桃/吃一半多一个",
+          "grade": 5,
+          "type": "课内"
+        },
+        {
+          "topic": "取物必胜游戏倒推",
+          "grade": 5,
+          "type": "培优"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-801",
+      "name": "循环周期",
+      "category": "周期与同余思想",
+      "category_en": "Periodicity & Congruence",
+      "description": "基于固定间隔的重复",
+      "core_feature": "寻找事物循环往复的规律",
+      "traversal": [
+        {
+          "topic": "彩灯闪烁规律",
+          "grade": 2,
+          "type": "课内"
+        },
+        {
+          "topic": "星期推算",
+          "grade": 3,
+          "type": "课内"
+        },
+        {
+          "topic": "小数的循环节",
+          "grade": 5,
+          "type": "课内"
+        },
+        {
+          "topic": "尾数规律",
+          "grade": 5,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-901",
+      "name": "组合枚举",
+      "category": "分类讨论思想",
+      "category_en": "Categorization",
+      "description": "按一定顺序枚举所有可能",
+      "core_feature": "不重不漏地穷举所有可能的情况",
+      "traversal": [
+        {
+          "topic": "衣服搭配问题",
+          "grade": 3,
+          "type": "课内"
+        },
+        {
+          "topic": "组数问题",
+          "grade": 3,
+          "type": "课内"
+        },
+        {
+          "topic": "最短路线计数",
+          "grade": 5,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-902",
+      "name": "多解讨论",
+      "category": "分类讨论思想",
+      "category_en": "Categorization",
+      "description": "因条件不确定导致的不同结果",
+      "core_feature": "不重不漏地穷举所有可能的情况",
+      "traversal": [
+        {
+          "topic": "等腰三角形已知一边求周长",
+          "grade": 4,
+          "type": "课内"
+        },
+        {
+          "topic": "相遇问题中的相距",
+          "grade": 5,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-1001",
+      "name": "时间统筹",
+      "category": "优化与统筹思想",
+      "category_en": "Optimization & Strategy",
+      "description": "并行处理以节省总时间",
+      "core_feature": "在多重约束下寻找最优策略",
+      "traversal": [
+        {
+          "topic": "沏茶问题",
+          "grade": 4,
+          "type": "课内"
+        },
+        {
+          "topic": "烙饼问题",
+          "grade": 4,
+          "type": "课内"
+        },
+        {
+          "topic": "排队打水",
+          "grade": 4,
+          "type": "课内"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-1002",
+      "name": "策略博弈",
+      "category": "优化与统筹思想",
+      "category_en": "Optimization & Strategy",
+      "description": "寻找对抗中的必胜法则",
+      "core_feature": "在多重约束下寻找最优策略",
+      "traversal": [
+        {
+          "topic": "田忌赛马",
+          "grade": 4,
+          "type": "课内"
+        },
+        {
+          "topic": "抢30游戏/Nim游戏",
+          "grade": 5,
+          "type": "培优"
+        }
+      ]
+    },
+    {
+      "idea_id": "ID-1101",
+      "name": "最不利原则",
+      "category": "抽屉与最不利思想",
+      "category_en": "Pigeonhole Principle",
+      "description": "保证发生的前提是穷尽所有不发生的情况",
+      "core_feature": "考虑最坏的情况以保证某种结果必然发生",
+      "traversal": [
+        {
+          "topic": "保证摸出2个同色球",
+          "grade": 5,
+          "type": "课内"
+        },
+        {
+          "topic": "扑克牌保证抽出同花色",
+          "grade": 5,
+          "type": "课内"
+        },
+        {
+          "topic": "至少几人同月出生",
+          "grade": 6,
+          "type": "课内"
+        }
+      ]
+    }
+  ],
+  "by_category": {
+    "对应思想": [
+      "ID-101",
+      "ID-102",
+      "ID-103",
+      "ID-104"
+    ],
+    "转化思想": [
+      "ID-201",
+      "ID-202",
+      "ID-203"
+    ],
+    "容斥与重叠思想": [
+      "ID-301",
+      "ID-302",
+      "ID-303"
+    ],
+    "数形结合思想": [
+      "ID-401",
+      "ID-402",
+      "ID-403"
+    ],
+    "代换与方程思想": [
+      "ID-501",
+      "ID-502"
+    ],
+    "极限与逼近思想": [
+      "ID-601",
+      "ID-602"
+    ],
+    "逆向与倒推思想": [
+      "ID-701"
+    ],
+    "周期与同余思想": [
+      "ID-801"
+    ],
+    "分类讨论思想": [
+      "ID-901",
+      "ID-902"
+    ],
+    "优化与统筹思想": [
+      "ID-1001",
+      "ID-1002"
+    ],
+    "抽屉与最不利思想": [
+      "ID-1101"
+    ]
+  }
+}
